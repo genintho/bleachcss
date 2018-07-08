@@ -9,9 +9,7 @@
       "request": "launch",
       "name": "Launch Program",
       "program": "${workspaceFolder}/src/index.ts",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "env": {
         "NODE_ENV": "development"
       }
@@ -23,15 +21,13 @@
       "preLaunchTask": "tsc-watch",
       "protocol": "auto",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [ "run", "docker-debug" ],
+      "runtimeArgs": ["run", "docker-debug"],
       "port": 5858,
       "restart": true,
       "timeout": 60000,
       "localRoot": "${workspaceFolder}",
       "remoteRoot": "/server",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
@@ -45,9 +41,7 @@
       "restart": true,
       "localRoot": "${workspaceFolder}",
       "remoteRoot": "/server",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ]
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
       "type": "node",
@@ -56,14 +50,12 @@
       "preLaunchTask": "tsc-watch",
       "protocol": "auto",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [ "run", "debug" ],
+      "runtimeArgs": ["run", "debug"],
       "restart": true,
       "port": 5858,
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ]
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     }
   ]
 }
