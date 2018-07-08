@@ -1,5 +1,5 @@
 {
-  "name": "bleachCSS",
+  "name": "bleachcss",
   "version": "0.0.1",
   "scripts": {
     "postinstall": "tsc -p ./src",
