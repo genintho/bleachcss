@@ -6,12 +6,39 @@
     "watch": "tsc -w -p ./src",
     "debug": "nodemon --watch ./dist --inspect=0.0.0.0:5858 --nolazy ./dist/index.js",
     "docker-debug": "docker-compose up",
-    "start": "node ./dist/index.js"
+    "start": "node ./dist/index.js",
+    "test": "node node_modules/.bin/jest",
+    "test:watch": "node node_modules/.bin/jest --watch",
+    "test:coverage": "node node_modules/.bin/jest --coverage",
+    "test:coverage:ci": "node node_modules/.bin/jest --coverage && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "devDependencies": {
-    "@types/node": "^6.0.50",
-    "typescript": "^2.3.2",
-    "nodemon": "^1.11.0"
+    "@types/node": "6.0.50",
+    "coveralls": "3.0.2",
+    "jest": "23.3.0",
+    "nodemon": "1.11.0",
+    "postcss": "6.0.23",
+    "postcss-nested": "3.0.0",
+    "postcss-safe-parser": "3.0.1",
+    "prettier": "1.13.7",
+    "typescript": "2.3.2",
+    "uglify-js": "3.4.3"
   },
-  "main": "./dist/index.js"
+  "main": "./dist/index.js",
+  "author": "Thomas Genin <thomas@bleachcss.com>",
+  "repository": "https://github.com/genintho/bleachcss.git",
+  "license": "MIT",
+  "description": "In browser detection of unused CSS. Used selector are send back to an API endpoint.",
+  "keywords": [
+    "unused",
+    "unused css",
+    "selector",
+    "clean up",
+    "CSS"
+  ],
+  "jest": {
+    "projects": [
+      "./probe/jest.config.js"
+    ]
+  }
 }
