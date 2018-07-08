@@ -2,8 +2,8 @@
   "name": "bleachcss",
   "version": "0.0.1",
   "scripts": {
-    "postinstall": "tsc -p ./src",
-    "watch": "tsc -w -p ./src",
+    "postinstall": "tsc -p ./server",
+    "watch": "tsc -w -p ./server",
     "debug": "nodemon --watch ./dist --inspect=0.0.0.0:5858 --nolazy ./dist/index.js",
     "docker-debug": "docker-compose up",
     "start": "node ./dist/index.js",
