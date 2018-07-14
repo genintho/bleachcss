@@ -1,5 +1,5 @@
 module.exports = {
-  name: "probe",
-  displyName: "probe",
-  rootDir: "./"
+    name: "probe",
+    displayName: "probe",
+    rootDir: "./",
 };
