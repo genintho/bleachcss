@@ -50,18 +50,15 @@
         "tabWidth": 4
     },
     "dependencies": {
-        "better-queue-sqlite": "github:genintho/better-queue-sqlite",
         "body-parser": "1.18.2",
         "cors": "2.8.4",
         "express": "4.16.3",
-        "fs-extra": "^6.0.1",
-        "kue": "^0.11.6",
+        "fs-extra": "6.0.1",
         "lodash": "4.17.10",
         "moment": "2.22.2",
         "postcss": "6.0.23",
         "postcss-nested": "3.0.0",
         "postcss-safe-parser": "3.0.1",
-        "sqlite3": "4.0.1",
         "targz": "1.0.1",
         "winston": "2.4.1"
     }
