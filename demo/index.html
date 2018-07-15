@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="css/test.css" />
+</head>
+
+<body>
+    <h1>Lol</h1>
+    <button class="btn" onclick="inject()">Button</button>
+    <div id="container">
+        <div class="item">
+            1. Container -> ID
+        </div>
+        <div class="item">
+            2. Container -> ID
+        </div>
+    </div>
+    <script src="http://localhost:3000/probe.js"></script>
+    <script>
+        BleachCSS.start({
+            url: "http://localhost:3000/api/v1/probes",
+            debug: true,
+            key: "06d07055f42cba6e195b2db6f84b7f2c"
+        });
+
+        function inject() {
+            document.getElementById("container").innerHTML = "<div class='dynamic'>dynamic</div>";
+        }
+    </script>
+</body>
+
+</html>
