@@ -1,8 +1,8 @@
 FROM node:8-slim
 
-WORKDIR /server
+WORKDIR /myapp
 
-COPY . /server
+COPY . /myapp
 RUN npm install
 
 EXPOSE 3000
