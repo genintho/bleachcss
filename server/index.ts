@@ -1,10 +1,11 @@
 import * as path from "path";
 import * as fs from "fs";
-import loggerFactory from "./lib/logger";
+import loggerFactory from "./logger";
 import express = require("express");
 import cors = require("cors");
 import bodyParser = require("body-parser");
-// import createJob from "./lib/jobQueue/createJob";
+import processProbeReport from "./processProbeReport";
+import * as SelectorStore from "./selectorStore";
 
 const logger = loggerFactory("server");
 const app = express();
@@ -16,7 +17,13 @@ const probeJsContentMin = fs.readFileSync(
 );
 
 app.get("/", (req, res) => {
-    res.send("FY");
+    res.send("Hi");
+});
+
+// @TODO - Protect by a password
+app.get("/stats", (req, res) => {
+    res.set("Content-Type", "application/javascript");
+    res.send(JSON.stringify(SelectorStore.getState()));
 });
 
 app.get("/probe.js", (req, res) => {
@@ -30,14 +37,14 @@ app.get("/probe.min.js", (req, res) => {
 });
 
 app.get("/api/v1/probes", (req, res) => {
-    res.send("FY");
+    res.send("Hi");
 });
 
-// app.post("/api/v1/probes", [cors(), bodyParser.text()], (req, res) => {
-//     logger.info("API Hit");
-//     createJob("probe_report", req.body);
-//     res.send("ack");
-// });
+app.post("/api/v1/probes", [cors(), bodyParser.text()], (req, res) => {
+    logger.info("Probe report usage");
+    processProbeReport(logger, req.body);
+    res.send("ack");
+});
 
 app.listen(3000, () => console.log("WebServer is Ready to go!"));
 

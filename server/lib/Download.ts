@@ -17,10 +17,10 @@ export function toVar(url: string): Promise<string> {
             gzip: true,
             resolveWithFullResponse: true,
         })
-            .then(res => {
+            .then((res) => {
                 resolve(res.body);
             })
-            .catch(e => {
+            .catch((e) => {
                 console.error("Download to VAr error");
                 reject(e);
             });
@@ -37,18 +37,16 @@ export function toFile(url: string, destination: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         const file = fs.createWriteStream(destination);
         const prot = getProtocol(url);
-        prot
-            .get(url, function(response) {
-                response.pipe(file);
-                file.on("finish", function() {
-                    file.close(resolve); // close() is async, call cb after close completes.
-                });
-            })
-            .on("error", function(err) {
-                // Handle errors
-                fs.unlink(destination); // Delete the file async. (But we don't check the result)
-                reject(err.message);
+        prot.get(url, function(response) {
+            response.pipe(file);
+            file.on("finish", function() {
+                file.close(resolve); // close() is async, call cb after close completes.
             });
+        }).on("error", function(err) {
+            // Handle errors
+            fs.unlink(destination); // Delete the file async. (But we don't check the result)
+            reject(err.message);
+        });
     });
 }
 
