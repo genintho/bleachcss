@@ -13,14 +13,14 @@
         "typescript": "4.2.3"
     },
     "jest": {},
-    "prettier": {},
+    "prettier": {"useTabs":  true},
     "husky": {
         "hooks": {
             "pre-commit": "lint-staged"
         }
     },
     "lint-staged": {
-        "*.{js,css,md}": "prettier --write"
+        "*.{js,css,md,html,json}": "prettier --write"
     },
     "main": "./dist/index.js",
     "name": "bleachcss",
