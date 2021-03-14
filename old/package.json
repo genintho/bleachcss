@@ -2,10 +2,8 @@
     "name": "bleachcss",
     "version": "0.0.1",
     "scripts": {
-        "postinstall": "tsc -p ./server",
         "watch": "tsc -w -p ./server",
         "debug": "nodemon --watch ./dist --inspect=0.0.0.0:5858 --nolazy ./dist/server/index.js",
-        "docker-debug": "docker-compose up",
         "start": "node ./dist/server/index.js",
         "test": "node node_modules/.bin/jest",
         "test:watch": "node node_modules/.bin/jest --watch",
@@ -21,10 +19,9 @@
         "coveralls": "3.0.2",
         "jest": "23.3.0",
         "nodemon": "1.11.0",
-        "prettier": "1.13.7",
+        "prettier": "2.2.1",
         "ts-jest": "23.0.0",
-        "typescript": "2.3.2",
-        "uglify-js": "3.4.3"
+        "typescript": "2.3.2"
     },
     "main": "./dist/index.js",
     "author": "Thomas Genin <thomas@bleachcss.com>",
@@ -47,10 +44,9 @@
     "prettier": {
         "trailingComma": "es5",
         "arrowParens": "always",
-        "tabWidth": 4
+        "useTabs": true
     },
     "dependencies": {
-        "better-queue-sqlite": "github:genintho/better-queue-sqlite",
         "body-parser": "1.18.2",
         "cors": "2.8.4",
         "express": "4.16.3",
@@ -62,7 +58,6 @@
         "postcss-nested": "3.0.0",
         "postcss-safe-parser": "3.0.1",
         "sqlite3": "4.0.1",
-        "targz": "1.0.1",
-        "winston": "2.4.1"
+        "targz": "1.0.1"
     }
 }

@@ -209,7 +209,7 @@ Probe.prototype._processStyleSheets = function() {
 
             // we need to return the url, so the file can be processed
             if (!rules) {
-                urlsToLoad.push(href);
+                // urlsToLoad.push(href);
             }
 
         }
