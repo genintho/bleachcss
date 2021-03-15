@@ -13,7 +13,9 @@
         "typescript": "4.2.3"
     },
     "jest": {},
-    "prettier": {"useTabs":  true},
+    "prettier": {
+        "useTabs": true
+    },
     "husky": {
         "hooks": {
             "pre-commit": "lint-staged"
