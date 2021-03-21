@@ -14,70 +14,70 @@ const kue = require("kue");
 const queue = kue.createQueue();
 
 const jobDefinitions = {
-    // uncss: {
-    //     perform: genPerform('uncss', runner_uncss)
-    // },
-    css_variations: {
-        perform: genPerform("css_variations", runner_css_variations),
-    },
-    probe_report: {
-        perform: genPerform("probe_report", runner_probe_report),
-    },
-    // create_pr: {
-    //     perform: (appId, githubToken, cb) => {
-    //         const logger = loggerFactory('job_create_pr');
-    //         runner_create_pr(logger, appId, githubToken, () => {})
-    //             .then(() => {
-    //             logger.info('done');
-    //                 cb(null, true);
-    //             })
-    //             .catch((err) => {
-    //                 logger.error(err);
-    //                 cb(err);
-    //             });
-    //     }
-    // }
+	// uncss: {
+	//     perform: genPerform('uncss', runner_uncss)
+	// },
+	css_variations: {
+		perform: genPerform("css_variations", runner_css_variations),
+	},
+	probe_report: {
+		perform: genPerform("probe_report", runner_probe_report),
+	},
+	// create_pr: {
+	//     perform: (appId, githubToken, cb) => {
+	//         const logger = loggerFactory('job_create_pr');
+	//         runner_create_pr(logger, appId, githubToken, () => {})
+	//             .then(() => {
+	//             logger.info('done');
+	//                 cb(null, true);
+	//             })
+	//             .catch((err) => {
+	//                 logger.error(err);
+	//                 cb(err);
+	//             });
+	//     }
+	// }
 };
 
 function genPerform(name, runner) {
-    return function(arg, cb) {
-        const logger = loggerFactory("job_" + name);
-        logger.info("Job arguments", arguments);
-        runner(logger, arg, () => {})
-            .then(() => {
-                logger.info("Job is done");
-                cb(null, true);
-            })
-            .catch((err) => {
-                logger.error(err);
-                logger.error("Job exit with error");
-                cb(err);
-            });
-    };
+	return function (arg, cb) {
+		const logger = loggerFactory("job_" + name);
+		logger.info("Job arguments", arguments);
+		runner(logger, arg, () => {})
+			.then(() => {
+				logger.info("Job is done");
+				cb(null, true);
+			})
+			.catch((err) => {
+				logger.error(err);
+				logger.error("Job exit with error");
+				cb(err);
+			});
+	};
 }
 
 // (async function() {
 DBInit();
 logger.info("Generic Job runner started");
 
-queue.process("gen_job", function(job, done) {
-    const jobData = job.data.data;
-    logger.info("Process job", job.id);
-    try {
-        if (jobDefinitions) {
-            jobDefinitions[jobData.task].perform(jobData.rawData, done);
-        } else {
-            logger.warn("No handler map to job", jobData.task);
-            done();
-        }
-    } catch (e) {
-        logger.error("Got Exception");
-        logger.error(e);
-        done();
-    }
+queue.process("gen_job", function (job, done) {
+	const jobData = job.data.data;
+	logger.info("Process job", job.id);
+	try {
+		if (jobDefinitions) {
+			jobDefinitions[jobData.task].perform(jobData.rawData, done);
+		} else {
+			logger.warn("No handler map to job", jobData.task);
+			done();
+		}
+	} catch (e) {
+		logger.error("Got Exception");
+		logger.error(e);
+		done();
+	}
 });
-queue.on("error", function(err) {
-    logger.error("Oops... ", err);
+queue.on("error", function (err) {
+	logger.error("Oops... ", err);
 });
 // })();
 
@@ -126,15 +126,15 @@ queue.on("error", function(err) {
 
 // Graceful Shutdown
 // https://github.com/Automattic/kue#graceful-shutdown
-process.once("SIGTERM", function(sig) {
-    // queue.shutdown( 5000, function(err) {
-    //     logger.warn( 'Kue shutdown: ', err||'' );
-    //     process.exit( 0 );
-    // });
-    // multiWorker.end();
+process.once("SIGTERM", function (sig) {
+	// queue.shutdown( 5000, function(err) {
+	//     logger.warn( 'Kue shutdown: ', err||'' );
+	//     process.exit( 0 );
+	// });
+	// multiWorker.end();
 });
 
 process.on("unhandledRejection", (reason, p) => {
-    console.log("Unhandled Rejection at: Promise", p, "reason:", reason);
-    // application specific logging, throwing an error, or other logic here
+	console.log("Unhandled Rejection at: Promise", p, "reason:", reason);
+	// application specific logging, throwing an error, or other logic here
 });

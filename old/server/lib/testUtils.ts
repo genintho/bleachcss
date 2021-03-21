@@ -5,9 +5,9 @@
  * @returns {Promise<any>}
  */
 export function promReturn(v) {
-    return new Promise<any>((resolve) => {
-        process.nextTick(() => {
-            resolve(v);
-        });
-    })
+	return new Promise<any>((resolve) => {
+		process.nextTick(() => {
+			resolve(v);
+		});
+	});
 }
