@@ -1,4 +1,4 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("_processCssRules", () => {
 	test("_processCssRules should do nothing when nothing is passed", () => {

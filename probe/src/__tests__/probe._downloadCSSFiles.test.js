@@ -1,4 +1,4 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("Probe._downloadCSSFiles", () => {
 	test("makes a GET request to load CSS files", () => {

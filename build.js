@@ -14,7 +14,7 @@ const target_file = files[files.length - 1];
 const version = target_file.substring(0, target_file.indexOf("-"));
 
 esbuild.buildSync({
-	entryPoints: [path.resolve(__dirname, "./probe/src/probe.js")],
+	entryPoints: [path.resolve(__dirname, "./probe/src/probe.ts")],
 	bundle: true,
 	minify: false,
 	sourcemap: false,
@@ -23,7 +23,7 @@ esbuild.buildSync({
 });
 
 esbuild.buildSync({
-	entryPoints: ["./probe/src/probe.js"],
+	entryPoints: [path.resolve(__dirname, "./probe/src/probe.ts")],
 	bundle: true,
 	minify: true,
 	sourcemap: true,

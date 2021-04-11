@@ -1,16 +1,11 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("_processStyleSheets", () => {
 	beforeEach(() => {
-		document.styleSheets = [];
-		// const spyFunc = jest.fn();
 		Object.defineProperty(global.document, "styleSheets", {
 			value: [],
 			writable: true,
 		});
-		// <run some test>
-		// 	expect(spyFunc).toHaveBeenCalled()
-		// 	});
 	});
 
 	test("should handle null href value", () => {
