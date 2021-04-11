@@ -1,4 +1,4 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("Probe.__selectorCheck", () => {
 	test("should return seen value if selector was already checked", () => {

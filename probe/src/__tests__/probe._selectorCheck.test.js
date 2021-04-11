@@ -1,4 +1,4 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("Probe._selectorCheck", () => {
 	test("should marked as checked the selector being processed", () => {

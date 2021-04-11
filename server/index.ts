@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import { probeReport } from "./handlers/probe-report";
 
 const app = express();
 
@@ -9,15 +10,7 @@ app.use(express.static("dist/probe"));
 app.get("/", (req, res) => {
 	res.send("👋");
 });
-app.post(
-	"/api/v1/probes",
-	[cors(), bodyParser.text()],
-	(req: express.Request, res: express.Response) => {
-		console.info("API Hit");
-		// createJob("probe_report", req.body);
-		res.send("ack");
-	}
-);
+app.post("/api/v1/probes", [cors(), bodyParser.text()], probeReport);
 
 app.listen(3000, () => {
 	console.log("WebServer is Ready to go!");

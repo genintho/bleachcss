@@ -1,4 +1,4 @@
-var Probe = require("../probe");
+var Probe = require("../probe").Probe;
 
 describe("Probe._sendbuffer", () => {
 	let open;

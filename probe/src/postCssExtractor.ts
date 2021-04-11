@@ -1,9 +1,25 @@
-const postcss = require("postcss");
+import postcss from "postcss";
 
-module.exports = function (cssSrc) {
+// export default function postCssExtractor(cssSrc: string) {
+// 	return new Promise((resolve, reject) => {
+// 		listSelector(
+// 			[cssSrc], // source
+// 			{ include: ["selectors"] }, // options
+// 			function (myList: string[]) {
+// 				// callback
+// 				console.log(myList);
+// 				// ... do other things with your nice selector list
+// 				resolve(myList);
+// 			}
+// 		);
+// 	});
+// }
+
+export function postCssExtractor(cssSrc: string) {
 	return new Promise((resolve, reject) => {
-		postcss()
-			.process(cssSrc, {})
+		postcss([])
+			// @ts-ignore
+			.process(cssSrc, { from: undefined, hideNothingWarning: true })
 			.then(function postCSSProcessResult(postCSSResult) {
 				const selectors = new Set();
 				postCSSResult.root.walkRules(function (rule) {
@@ -31,4 +47,4 @@ module.exports = function (cssSrc) {
 				resolve(selectors);
 			});
 	});
-};
+}
