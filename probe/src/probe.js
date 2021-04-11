@@ -1,8 +1,5 @@
 // @ts-check
 
-/**
- * @constructor
- */
 function Probe() {
 	this.options = {
 		/**
