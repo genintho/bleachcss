@@ -1,4 +1,42 @@
-export default [
+export interface PublicLibraryPattern1 {
+	readonly name: string;
+	readonly pattern: string;
+	readonly examples: string[];
+}
+
+export interface PublicLibraryPattern2 {
+	readonly name: string;
+	readonly pattern: string;
+	readonly nameFromRegExp?: boolean;
+	readonly examples: Record<string, string>;
+}
+
+export function findPublicLibrary(
+	url: string
+): { name: string; pattern: string } | null {
+	let match = LIBRARIES.find((item) => {
+		return new RegExp(item.pattern).test(url);
+	});
+
+	if (!match) {
+		return null;
+	}
+
+	const m = new RegExp(match.pattern).exec(url);
+	if (!m) {
+		return null;
+	}
+
+	// We have a match, so we need to insert a new CSS File Definition with the information of known libraries
+	const name =
+		match.nameFromRegExp === true ? m[1] + " " + match.name : match.name;
+	return {
+		name,
+		pattern: match.pattern,
+	};
+}
+
+export const LIBRARIES: (PublicLibraryPattern1 | PublicLibraryPattern2)[] = [
 	{
 		name: "Google Fonts",
 		pattern: "fonts.googleapis.com/[css|earlyaccess]",

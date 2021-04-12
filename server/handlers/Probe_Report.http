@@ -4,7 +4,7 @@ Content-Type: text/plain
 
 {
 "v":"0.1", "k":"pewpew",
-"f": {"http://loo.com/style.css": [".btn"]
+"f": {"https://github.githubassets.com/assets/frameworks-3d85abd8e6af4fc72b0afa253e125ef9.css": [".btn"]
 }
 }
 
