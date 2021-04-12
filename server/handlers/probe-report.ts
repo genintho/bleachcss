@@ -1,6 +1,7 @@
 import type express from "express";
 import * as crypto from "crypto";
 import { ProbeApiV1 } from "../../probe/src/probe";
+import { findPattern } from "../lib/findPattern";
 
 const request_cache = new Set();
 
@@ -13,6 +14,15 @@ export function probeReport(req: express.Request, res: express.Response) {
 		return;
 	}
 	const payload = JSON.parse(raw_payload);
-	console.log(payload);
 	request_cache.add(req_hex);
+	process_v01(payload);
+	res.send("ack");
+}
+
+function process_v01(payload: ProbeApiV1) {
+	Object.keys(payload.f).forEach((file_url) => {
+		// a
+		const r = findPattern(file_url);
+		const selectors = payload.f[file_url];
+	});
 }

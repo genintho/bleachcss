@@ -26,7 +26,8 @@
 	},
 	"jest": {
 		"projects": [
-			"./probe/jest.config.js"
+			"./probe/jest.config.js",
+			"./server/jest.config.js"
 		]
 	},
 	"prettier": {

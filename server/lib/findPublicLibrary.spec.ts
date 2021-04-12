@@ -1,13 +1,13 @@
 import * as _ from "lodash";
-import PublicLibraryPatterns from "../PublicLibraryPatterns";
-import findPublicLibrary from "../findPublicLibrary";
+import { LIBRARIES } from "./findPublicLibrary";
+import { findPublicLibrary } from "./findPublicLibrary";
 
 describe("findPublicLibrary", () => {
-	_.forEach(PublicLibraryPatterns, (known) => {
+	LIBRARIES.forEach((known) => {
 		describe("pattern:" + known.pattern, () => {
-			_.forEach(known.examples, (urlTest, key) => {
+			_.forEach(known.examples, (urlTest: string, key: string) => {
 				test("url: " + urlTest, () => {
-					const result = findPublicLibrary(() => {}, urlTest);
+					const result = findPublicLibrary(urlTest);
 					if (result === null) {
 						expect(result).not.toBeNull();
 						return;
@@ -24,7 +24,7 @@ describe("findPublicLibrary", () => {
 	});
 
 	test("should return null if no match", () => {
-		const result = findPublicLibrary(() => {}, "http://wwww.google.com");
+		const result = findPublicLibrary("http://wwww.google.com");
 		expect(result).toBeNull();
 	});
 });

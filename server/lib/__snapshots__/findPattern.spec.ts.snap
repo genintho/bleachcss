@@ -79,16 +79,16 @@ Array [
     "pattern": "sumome-140a\\\\.kxcdn(.(ac|co|com|edu|gov|me|net|org))?.[^./]+/virtual/[0-9a-f]{40}/client/css/sumome-scrollbox-popup\\\\.css",
   },
   Object {
-    "name": "www.nomadicmatt.<domain>/wp-content/plugins/searchwp-live-ajax-search/assets/styles/style.css?ver=<version>",
-    "pattern": "www\\\\.nomadicmatt(.(ac|co|com|edu|gov|me|net|org))?.[^./]+/wp-content/plugins/searchwp-live-ajax-search/assets/styles/style\\\\.css\\\\?ver=([\\\\d.]|[a-f\\\\d])+",
+    "name": "searchwp-live-ajax-search Wordpress Plugin",
+    "pattern": "/wp-content/plugins/(.+?)/",
   },
   Object {
-    "name": "www.nomadicmatt.<domain>/wp-content/plugins/woocommerce/assets/css/woocommerce-layout.css?ver=<version>",
-    "pattern": "www\\\\.nomadicmatt(.(ac|co|com|edu|gov|me|net|org))?.[^./]+/wp-content/plugins/woocommerce/assets/css/woocommerce-layout\\\\.css\\\\?ver=([\\\\d.]|[a-f\\\\d])+",
+    "name": "woocommerce Wordpress Plugin",
+    "pattern": "/wp-content/plugins/(.+?)/",
   },
   Object {
-    "name": "www.nomadicmatt.<domain>/wp-content/themes/nomadicmatt/style.css?ver=<version>",
-    "pattern": "www\\\\.nomadicmatt(.(ac|co|com|edu|gov|me|net|org))?.[^./]+/wp-content/themes/nomadicmatt/style\\\\.css\\\\?ver=([\\\\d.]|[a-f\\\\d])+",
+    "name": "nomadicmatt Wordpress Plugin",
+    "pattern": "/wp-content/themes/(.+?)/",
   },
   Object {
     "name": "assets-cdn.github.<domain>/assets/github-<hash64>.css",

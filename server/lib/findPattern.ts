@@ -1,7 +1,11 @@
-export default function findPattern(
-	logger,
-	url: string
-): { name: string; pattern: string } {
+import { findPublicLibrary } from "./findPublicLibrary";
+
+export function findPattern(url: string): { name: string; pattern: string } {
+	const publicPattern = findPublicLibrary(url);
+	if (publicPattern) {
+		return publicPattern;
+	}
+
 	const noScheme = url.replace(/.*:\/\//, "");
 	const host = noScheme.split("/", 1)[0];
 	const path = noScheme.replace(host, "").split("?", 1)[0];
@@ -71,7 +75,7 @@ const domainReplaceRegex =
 	"(.(" + commonSecondLevelDomains.join("|") + "))?.[^./]+";
 const domainDetectRegex = new RegExp(domainReplaceRegex + "$", "i");
 
-const pathVariations = {
+const pathVariations: Record<string, { detect: RegExp; replace: string }> = {
 	"<hash64>": {
 		detect: /\b[0-9a-f]{64}\b/gi,
 		replace: "[0-9a-f]{64}",
@@ -105,7 +109,7 @@ const pathVariations = {
 		replace: "1[0-9]{12}",
 	},
 };
-const queryVariations = {
+const queryVariations: Record<string, { detect: RegExp; replace: string }> = {
 	"timestamp=<timestamp>": {
 		detect: /^timestamp=[\d]+$/i,
 		replace: "timestamp=[\\d]+",
