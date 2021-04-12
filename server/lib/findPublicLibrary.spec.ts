@@ -5,13 +5,15 @@ import { findPublicLibrary } from "./findPublicLibrary";
 describe("findPublicLibrary", () => {
 	LIBRARIES.forEach((known) => {
 		describe("pattern:" + known.pattern, () => {
-			_.forEach(known.examples, (urlTest: string, key: string) => {
+			_.forEach(known.examples, (urlTest, key) => {
 				test("url: " + urlTest, () => {
+					// @ts-ignore
 					const result = findPublicLibrary(urlTest);
 					if (result === null) {
 						expect(result).not.toBeNull();
 						return;
 					}
+					// @ts-ignore
 					if (known.nameFromRegExp) {
 						expect(result.name).toBe(key + " " + known.name);
 					} else {
