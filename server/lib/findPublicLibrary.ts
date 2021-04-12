@@ -29,6 +29,7 @@ export function findPublicLibrary(
 
 	// We have a match, so we need to insert a new CSS File Definition with the information of known libraries
 	const name =
+		// @ts-ignore
 		match.nameFromRegExp === true ? m[1] + " " + match.name : match.name;
 	return {
 		name,

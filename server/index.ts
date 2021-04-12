@@ -2,6 +2,11 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { probeReport } from "./handlers/probe-report";
+import * as db from "./db";
+
+(async () => {
+	await db.aaa();
+})();
 
 const app = express();
 
