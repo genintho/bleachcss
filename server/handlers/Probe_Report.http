@@ -1,0 +1,11 @@
+POST http://localhost:3000/api/v1/probe/report
+Content-Type: text/plain
+#Content-Type: application/json
+
+{
+"v":"0.1", "k":"pewpew",
+"f": {"http://loo.com/style.css": [".btn"]
+}
+}
+
+###
