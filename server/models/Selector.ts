@@ -1,10 +1,10 @@
 import * as db from "../db";
 
-export async function create(name: string, seen: boolean) {
+export async function create(name: string) {
 	const db_connection = await db.connect();
-	console.log("css file create", name);
+	console.log("selector create", name);
 	await db_connection.run(
-		"INSERT INTO css_file (name, created_at, seen_at) " +
+		"INSERT INTO css_selector (name, created_at, seen_at) " +
 			"VALUES (:name, :created_at, :seen_at) " +
 			"ON CONFLICT (name) DO UPDATE SET seen_at=:seen_at WHERE name=:name;",
 		{
