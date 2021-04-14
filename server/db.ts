@@ -2,20 +2,16 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import * as path from "path";
 
-sqlite3.verbose();
-
-let cache: sqlite3.Database;
+// sqlite3.verbose();
 
 export async function connect(): Promise<sqlite3.Database> {
-	if (!cache) {
-		cache = ((await open({
-			filename: path.resolve(__dirname, "./database.sqlite"),
-			driver: sqlite3.cached.Database,
-		})) as unknown) as sqlite3.Database;
-		cache.on("trace", (data) => {
-			console.log(data);
-		});
-	}
+	const cache = ((await open({
+		filename: path.resolve(__dirname, "./database.sqlite"),
+		driver: sqlite3.cached.Database,
+	})) as unknown) as sqlite3.Database;
+	// cache.on("trace", (data) => {
+	// console.log(data);
+	// });
 	return cache;
 }
 

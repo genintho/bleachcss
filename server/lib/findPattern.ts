@@ -1,6 +1,12 @@
 import { findPublicLibrary } from "./findPublicLibrary";
 
-export function findPattern(url: string): { name: string; pattern: string } {
+export interface CssUrlResource {
+	readonly url: string;
+	readonly pattern: string;
+	readonly name: string;
+}
+
+export function findPattern(url: string): CssUrlResource {
 	const publicPattern = findPublicLibrary(url);
 	if (publicPattern) {
 		return publicPattern;
@@ -53,6 +59,7 @@ export function findPattern(url: string): { name: string; pattern: string } {
 		regexEscape(host.replace(domainDetectRegex, "")) + domainReplaceRegex;
 	let hostName = host.replace(domainDetectRegex, ".<domain>");
 	return {
+		url,
 		name: hostName + pathName + queryName,
 		pattern: hostPattern + pathPattern + queryPattern,
 	};

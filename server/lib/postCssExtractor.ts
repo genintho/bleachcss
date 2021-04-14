@@ -15,18 +15,20 @@ import postcss from "postcss";
 // 	});
 // }
 
-export function postCssExtractor(cssSrc: string) {
+export function postCssExtractor(cssSrc: string): Promise<Set<string>> {
 	return new Promise((resolve, reject) => {
 		postcss([])
 			// @ts-ignore
 			.process(cssSrc, { from: undefined, hideNothingWarning: true })
 			.then(function postCSSProcessResult(postCSSResult) {
-				const selectors = new Set();
+				const selectors: Set<string> = new Set();
 				postCSSResult.root.walkRules(function (rule) {
 					if (
 						rule.parent &&
+						// @ts-ignore
 						rule.parent.name &&
-						rule.parent.name.indexOf("keyframes") !== -1
+						// @ts-ignore
+						rule.parent?.name.indexOf("keyframes") !== -1
 					) {
 						return;
 					}

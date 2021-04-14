@@ -1,7 +1,8 @@
 var Probe = require("../probe").Probe;
 var fs = require("fs");
 var path = require("path");
-var postCssExtractor = require("../postCssExtractor").postCssExtractor;
+var postCssExtractor = require("../../../server/lib/postCssExtractor")
+	.postCssExtractor;
 
 const inputs = {
 	simple: {
