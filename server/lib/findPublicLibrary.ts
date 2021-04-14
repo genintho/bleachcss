@@ -1,3 +1,5 @@
+import { CssUrlResource } from "./findPattern";
+
 export interface PublicLibraryPattern1 {
 	readonly name: string;
 	readonly pattern: string;
@@ -11,9 +13,7 @@ export interface PublicLibraryPattern2 {
 	readonly examples: Record<string, string>;
 }
 
-export function findPublicLibrary(
-	url: string
-): { name: string; pattern: string } | null {
+export function findPublicLibrary(url: string): CssUrlResource | null {
 	let match = LIBRARIES.find((item) => {
 		return new RegExp(item.pattern).test(url);
 	});
@@ -32,6 +32,7 @@ export function findPublicLibrary(
 		// @ts-ignore
 		match.nameFromRegExp === true ? m[1] + " " + match.name : match.name;
 	return {
+		url,
 		name,
 		pattern: match.pattern,
 	};
