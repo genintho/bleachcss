@@ -13,8 +13,9 @@ files.sort();
 const target_file = files[files.length - 1];
 const version = target_file.substring(0, target_file.indexOf("-"));
 
+const SRC = path.resolve(__dirname, "./probe/src/browser.js");
 esbuild.buildSync({
-	entryPoints: [path.resolve(__dirname, "./probe/src/probe.ts")],
+	entryPoints: [SRC],
 	bundle: true,
 	minify: false,
 	sourcemap: false,
@@ -23,7 +24,7 @@ esbuild.buildSync({
 });
 
 esbuild.buildSync({
-	entryPoints: [path.resolve(__dirname, "./probe/src/probe.ts")],
+	entryPoints: [SRC],
 	bundle: true,
 	minify: true,
 	sourcemap: true,

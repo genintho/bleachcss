@@ -1,7 +1,7 @@
 var Probe = require("../probe").Probe;
 
 describe("Probe._downloadCSSFiles", () => {
-	test("makes a GET request to load CSS files", () => {
+	test.skip("makes a GET request to load CSS files", () => {
 		var p = new Probe();
 
 		var callbackFct = jest.fn();

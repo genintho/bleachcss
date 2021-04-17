@@ -15,7 +15,7 @@ describe("_processStyleSheets", () => {
 		});
 
 		const p = new Probe();
-		var urls = p._processStyleSheets();
+		var urls = p._getNewCssFileUrls();
 		expect(urls).toEqual([]);
 		expect(p._cssFilesURLs).toEqual([]);
 	});
@@ -27,7 +27,7 @@ describe("_processStyleSheets", () => {
 		});
 
 		const p = new Probe();
-		var urls = p._processStyleSheets();
+		var urls = p._getNewCssFileUrls();
 		expect(urls).toEqual(["https://grid.fr/a.css"]);
 		expect(p._cssFilesURLs).toEqual([]);
 	});
@@ -45,27 +45,8 @@ describe("_processStyleSheets", () => {
 		};
 
 		const p = new Probe();
-		var urls = p._processStyleSheets();
+		var urls = p._getNewCssFileUrls();
 		expect(urls).toEqual(["https://grid.fr/a.css"]);
 		expect(p._cssFilesURLs).toEqual([]);
-	});
-
-	test("should process CSS rules", () => {
-		document.styleSheets = [];
-
-		const mockUrl = "https://grid.fr/a.css";
-		const mockRules = { a: 4 };
-
-		document.styleSheets[0] = {
-			href: mockUrl,
-			cssRules: mockRules,
-		};
-
-		const p = new Probe();
-		p._processCssRules = jest.fn();
-		var urls = p._processStyleSheets();
-		expect(urls).toEqual([]);
-		expect(p._cssFilesURLs).toEqual([mockUrl]);
-		expect(p._processCssRules).toHaveBeenCalledWith(mockUrl, mockRules);
 	});
 });

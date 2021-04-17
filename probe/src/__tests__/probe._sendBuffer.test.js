@@ -50,7 +50,7 @@ describe("Probe._sendbuffer", () => {
 		p.start({ url: fakeUrl });
 
 		p._sendBuffer();
-		expect(open).toHaveBeenCalledWith("POST", fakeUrl);
+		expect(open).toHaveBeenCalledWith("POST", fakeUrl + "/a/1/report");
 	});
 
 	test("should empty the buffer array", () => {

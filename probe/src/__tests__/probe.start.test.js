@@ -17,10 +17,10 @@ describe("Probe.start", () => {
 		expect(p.options.chunkSize).toBe(340);
 	});
 
-	test("must require a key", () => {
-		expect(() => {
-			var p = new Probe();
-			p.start({ chunkSize: 340 });
-		}).toThrow("BleachCSS require an API key");
-	});
+	// test("must require a key", () => {
+	// 	expect(() => {
+	// 		var p = new Probe();
+	// 		p.start({ chunkSize: 340 });
+	// 	}).toThrow("BleachCSS require an API key");
+	// });
 });
