@@ -3,6 +3,7 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import { probeReport } from "./handlers/probe-report";
 import * as db from "./db";
+import { parseCssFile } from "./handlers/parse-css-file";
 
 (async () => {
 	await db.aaa();
@@ -15,7 +16,8 @@ app.use(express.static("dist/probe"));
 app.get("/", (req, res) => {
 	res.send("👋");
 });
-app.post("/api/v1/probe/report", [bodyParser.text(), probeReport]);
+app.post("/a/1/report", [bodyParser.text(), probeReport]);
+app.get("/a/1/parse", [cors(), parseCssFile]);
 
 app.listen(3000, () => {
 	console.log("WebServer is Ready to go!");
