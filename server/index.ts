@@ -16,7 +16,7 @@ app.use(express.static("dist/probe"));
 app.get("/", (req, res) => {
 	res.send("👋");
 });
-app.post("/a/1/report", [bodyParser.text(), probeReport]);
+app.post("/a/1/report", [cors(), bodyParser.text(), probeReport]);
 app.get("/a/1/parse", [cors(), parseCssFile]);
 
 app.listen(3000, () => {

@@ -1,3 +1,5 @@
+import { Parse1Api, Parse1ApiItem, QueryFcn } from "../../types/parse-css";
+
 interface Options {
 	[k: string]: any;
 	pattern: string[] | null;
@@ -10,11 +12,10 @@ interface Options {
 interface SelectorRecord {
 	files: string[];
 	seen: boolean;
-	// Is this selector found in the CSS Stylesheet
-	exists: boolean;
+	exists: boolean; // Is this selector found in the CSS Stylesheet
 	parent_text: string | null;
 	fcn: CheckerFcn;
-	checked: boolean;
+	checked: boolean; // Store if the selector has been tested during the current run
 }
 
 export interface ProbeApiV1 {
@@ -67,10 +68,9 @@ export class Probe {
 	private _allSelectors: Record<string, SelectorRecord> = {};
 
 	/**
-	 * Map of the selector that have not been seend in the DOM yet
-	 * @type {Object<string, boolean>}
+	 * Map of the selector that have not been seen in the DOM yet
 	 */
-	private _unseenSelectors: Record<string, boolean> = {};
+	private _unseenSelectors: string[] = [];
 
 	/**
 	 * List of selector that have been seen in the DOM but did not got send yet to the server.
@@ -161,7 +161,7 @@ export class Probe {
 		}
 		console.time("_checkSelectorsByChunk");
 		this._checkSelectorsByChunk(
-			Object.keys(this._unseenSelectors),
+			Object.assign([], this._unseenSelectors), // copy array, TS style
 			function () {
 				console.timeEnd("_checkSelectorsByChunk");
 				// console.profileEnd("full detection");
@@ -185,13 +185,6 @@ export class Probe {
 		var urls = this._getNewCssFileUrls();
 		await this._downloadCSSFiles(urls);
 		console.timeEnd("_processStyleSheets");
-
-		// DISABLE PARSING CSS FILES, JUST RELY ON STYLESHEET OBJECT
-		// var urls = this._processStyleSheets();
-		// this._downloadCSSFiles(urls, function (url, text) {
-		// 	self._extractSelectors(url, text);
-		// 	self._mainLoop();
-		// });
 	}
 
 	public _getNewCssFileUrls(): string[] {
@@ -218,15 +211,14 @@ export class Probe {
 	 * Find used selectors from the list of unused selector we already have
 	 */
 	private _checkSelectorsByChunk(selectors: string[], doneCb: () => void) {
-		return;
-		// console.time('detect');
+		console.time("detect");
 		var ll = selectors.length;
 		var limit = ll > this.options.chunkSize ? this.options.chunkSize : ll;
 
 		for (var i = 0; i < limit; i++) {
 			this._selectorCheck(selectors.pop());
 		}
-		// console.timeEnd('detect');
+		console.timeEnd("detect");
 
 		// Nothing else to process, return
 		if (selectors.length === 0) {
@@ -240,44 +232,32 @@ export class Probe {
 		}, 0);
 	}
 
-	/**
-	 *
-	 */
-	private _selectorCheck(selectorText?: string): boolean {
-		if (!selectorText) return false;
-		var a = this.__selectorCheck(selectorText);
-		this._allSelectors[selectorText].checked = true;
-		return a;
-	}
+	private _selectorCheck(selector_text: string | undefined): boolean {
+		if (!selector_text) return false;
 
-	private __selectorCheck(selectorText: string): boolean {
-		var item = this._allSelectors[selectorText];
+		var item = this._allSelectors[selector_text];
 		if (!item) {
 			return false;
 		}
 		if (item.checked) {
 			return item.seen;
 		}
-
-		if (item.seen) {
-			return true;
-		}
-
+		item.checked = true;
 		if (item.parent_text) {
 			// If we have not seen the parent, there is no way we can find the children
 			if (!this._selectorCheck(item.parent_text)) {
-				return false;
+				return (item.seen = false);
 			}
 		}
-
 		try {
-			if (item.fcn(selectorText)) {
+			if ((item.seen = item.fcn(selector_text))) {
 				if (item.exists) {
-					delete this._unseenSelectors[selectorText];
-					this._buffer.push(selectorText);
+					const index = this._unseenSelectors.indexOf(selector_text);
+					if (index > -1) {
+						this._unseenSelectors.splice(index, 1);
+					}
+					this._buffer.push(selector_text);
 				}
-				item.seen = true;
-				return true;
 			}
 		} catch (e) {
 			console.warn(e);
@@ -285,23 +265,7 @@ export class Probe {
 				"BleachCSS Probe encounter an error. Please file a bug https://github.com/genintho/bleachcss-probe/issues/new"
 			);
 		}
-
-		return false;
-	}
-
-	/**
-	 * Identify which function need to be used to check the existence of the element
-	 */
-	private _findChecker(selector: string): CheckerFcn {
-		if (/^#[^\s]+$/.test(selector)) {
-			return this._fcnCheckByID;
-		}
-
-		if (/^\.[^\s]+$/.test(selector)) {
-			return this._fcnCheckClass;
-		}
-		// @TODO get element by tag name
-		return this._fcnCheckFallback;
+		return item.seen;
 	}
 
 	/**
@@ -348,15 +312,45 @@ export class Probe {
 			stylesheetURLs.map(
 				(url): Promise<any> => {
 					return fetch(
-						this.options.url + "/a/1/parse?urls=" + encodeURIComponent(url)
+						this.options.url + "/a/1/parse?url=" + encodeURIComponent(url)
 					)
 						.then((response) => response.json())
-						.then((response) => {
-							console.log(response);
+						.then((response: Parse1Api) => {
+							response.forEach((item) => {
+								this._addSelector(url, item);
+							});
 						});
 				}
 			)
 		);
+	}
+
+	private _addSelector(css_file_url: string, item: Parse1ApiItem): void {
+		const selector_text = item.selector;
+		if (this._allSelectors[selector_text]) {
+			this._allSelectors[selector_text].files.push(css_file_url);
+			return;
+		}
+		this._allSelectors[selector_text] = {
+			checked: false,
+			exists: item.exists,
+			fcn: (() => {
+				switch (item.fcn) {
+					case QueryFcn.id:
+						return this._fcnCheckByID;
+					case QueryFcn.class:
+						return this._fcnCheckClass;
+					default:
+						return this._fcnCheckFallback;
+				}
+			})(),
+			parent_text: item.parent,
+			seen: false,
+			files: [css_file_url],
+		};
+		if (item.exists) {
+			this._unseenSelectors.push(item.selector);
+		}
 	}
 
 	/**
@@ -364,7 +358,7 @@ export class Probe {
 	 */
 	private _sendBuffer() {
 		var self = this;
-		var cloneBuffer = [].concat(this._buffer);
+		var cloneBuffer = Object.assign([], this._buffer);
 		// Reset the buffer so we do not send the same thing again and again
 		this._buffer = [];
 		this._log("buffer", cloneBuffer.length, cloneBuffer);

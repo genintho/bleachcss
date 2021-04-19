@@ -1,6 +1,6 @@
 import { Probe } from "./probe";
-
+const url = "https://f322a8dccbdb.ngrok.io";
 window.BleachCSS = new Probe({
-	url: "https://3acd3ee2b9b7.ngrok.io",
+	url,
 });
-BleachCSS.start({ url: "https://439111231a2a.ngrok.io", debug: true });
+BleachCSS.start({ url, debug: true });
