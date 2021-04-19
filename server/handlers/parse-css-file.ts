@@ -1,7 +1,7 @@
 import type express from "express";
 import { findPattern } from "../lib/findPattern";
 import { process_css_file } from "./process_css_file";
-import { QueryFcn, Parse1Api } from "../../types/parse-css";
+import { QueryFcn, Parse1Api, Parse1ApiItem } from "../../types/parse-css";
 
 const request_cache = new Map();
 
@@ -39,14 +39,31 @@ export async function process(url: string): Promise<Parse1Api> {
 	const arr = Array.from(selectors);
 	arr.sort();
 
-	return arr.map((selector) => {
-		return {
+	const res: Record<string, Parse1ApiItem> = {};
+
+	arr.forEach((selector) => {
+		const parents = extract_parents(selector);
+		res[selector] = {
 			selector,
-			parent: null,
+			parent: parents.length > 0 ? parents[0] : null,
 			exists: true,
 			fcn: QueryFcn.General,
 		};
+		let parent = parents.shift();
+		while (parent) {
+			if (!res[parent]) {
+				res[parent] = {
+					selector: parent,
+					parent: parents.length > 0 ? parents[0] : null,
+					exists: false,
+					fcn: QueryFcn.General,
+				};
+			}
+			parent = parents.pop();
+		}
 	});
+
+	return Object.values(res);
 }
 
 export function extract_parents(selector: string): string[] {
