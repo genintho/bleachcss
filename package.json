@@ -1,9 +1,10 @@
 {
 	"scripts": {
-		"test": "node node_modules/.bin/jest",
-		"test:watch": "node node_modules/.bin/jest --watch",
-		"test:coverage": "node node_modules/.bin/jest --coverage",
-		"test:coverage:ci": "node node_modules/.bin/jest --coverage && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"test:summary": "jest 2>&1 | grep '●'",
+		"test:coverage:ci": "jest --coverage && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.13.15",
