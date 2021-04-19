@@ -1,20 +1,21 @@
-// import type express from "express";
+import type express from "express";
 import { findPattern } from "../lib/findPattern";
 import { process_css_file } from "./process_css_file";
+import { QueryFcn, Parse1Api } from "../../types/parse-css";
 
 const request_cache = new Map();
-
-export type Parse1Api = Record<string, any>;
 
 export async function parseCssFile(
 	req: express.Request,
 	res: express.Response
 ) {
+	console.time("Parse_CSS_File");
 	const css_file_url = req.query.url as string;
 	console.log(
 		"----------------------------------------------------------------------------"
 	);
-	if (true || !request_cache.has(css_file_url)) {
+	console.log("Parse CSS file", req.query);
+	if (!request_cache.has(css_file_url)) {
 		try {
 			const payload = await process(css_file_url);
 			request_cache.set(css_file_url, payload);
@@ -26,22 +27,26 @@ export async function parseCssFile(
 		console.log("API Cache hit", css_file_url);
 	}
 
-	// res.json(request_cache.get(css_file_url));
 	res.header("Content-Type", "application/json");
 	res.send(JSON.stringify(request_cache.get(css_file_url), null, 4));
 	console.log("API success");
+	console.timeEnd("Parse_CSS_File");
 }
 
-export async function process(url: string) {
+export async function process(url: string): Promise<Parse1Api> {
 	const file_pattern = findPattern(url);
 	const selectors = await process_css_file(file_pattern);
 	const arr = Array.from(selectors);
 	arr.sort();
-	const payload: Parse1Api = {};
-	arr.forEach((selector) => {
-		payload[selector] = true;
+
+	return arr.map((selector) => {
+		return {
+			selector,
+			parent: null,
+			exists: true,
+			fcn: QueryFcn.General,
+		};
 	});
-	return payload;
 }
 
 export function extract_parents(selector: string): string[] {
@@ -52,7 +57,7 @@ export function extract_parents(selector: string): string[] {
 
 	var last = splits.pop();
 	var parentSelector = selector
-		.substr(0, selector.length - last.length - 1)
+		.substr(0, selector.length - last!.length - 1)
 		.trim();
 	if (["+", "~", ">"].indexOf(parentSelector.slice(-1)) !== -1) {
 		parentSelector = parentSelector.slice(0, -1).trim();
