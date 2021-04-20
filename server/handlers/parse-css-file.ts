@@ -1,7 +1,7 @@
 import type express from "express";
 import { findPattern } from "../lib/findPattern";
 import { process_css_file } from "./process_css_file";
-import { QueryFcn, Parse1Api, Parse1ApiItem } from "../../types/parse-css";
+import { Parse1Api, Parse1ApiItem, QueryFcn } from "../../types/parse-css";
 
 const request_cache = new Map();
 
@@ -43,11 +43,15 @@ export async function process(url: string): Promise<Parse1Api> {
 
 	arr.forEach((selector) => {
 		const parents = extract_parents(selector);
+		// @TODO Decompose selector parents only if the parents has more than 1 child
+		// The tree with only 1 branch and multiple nodes are creating more work than needed
+		// Example if the css file has only .parent .child .grandson
+		// and .parent .child .granddaughter, the we should return only ".parent .child" in the payload
 		res[selector] = {
 			selector,
 			parent: parents.length > 0 ? parents[0] : null,
 			exists: true,
-			fcn: QueryFcn.General,
+			fcn: find_fcn_detection(selector),
 		};
 		let parent = parents.shift();
 		while (parent) {
@@ -56,7 +60,7 @@ export async function process(url: string): Promise<Parse1Api> {
 					selector: parent,
 					parent: parents.length > 0 ? parents[0] : null,
 					exists: false,
-					fcn: QueryFcn.General,
+					fcn: find_fcn_detection(parent),
 				};
 			}
 			parent = parents.pop();
@@ -80,4 +84,15 @@ export function extract_parents(selector: string): string[] {
 		parentSelector = parentSelector.slice(0, -1).trim();
 	}
 	return [parentSelector].concat(extract_parents(parentSelector));
+}
+
+export function find_fcn_detection(selector: string): QueryFcn {
+	if (/^#[^\s]+$/.test(selector)) {
+		return QueryFcn.id;
+	}
+
+	if (/^\.[^\s]+$/.test(selector)) {
+		return QueryFcn.class;
+	}
+	return QueryFcn.General;
 }
