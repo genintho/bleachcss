@@ -1,20 +1,5 @@
 import postcss from "postcss";
 
-// export default function postCssExtractor(cssSrc: string) {
-// 	return new Promise((resolve, reject) => {
-// 		listSelector(
-// 			[cssSrc], // source
-// 			{ include: ["selectors"] }, // options
-// 			function (myList: string[]) {
-// 				// callback
-// 				console.log(myList);
-// 				// ... do other things with your nice selector list
-// 				resolve(myList);
-// 			}
-// 		);
-// 	});
-// }
-
 export function postCssExtractor(cssSrc: string): Promise<Set<string>> {
 	return new Promise((resolve, reject) => {
 		postcss([])
@@ -33,9 +18,9 @@ export function postCssExtractor(cssSrc: string): Promise<Set<string>> {
 						return;
 					}
 					rule.selectors.forEach((item) => {
-						var splits = item.split(":");
+						const splits = item.split(":");
 
-						var selector = item;
+						let selector = item;
 						if (splits[splits.length - 1].indexOf("-child") === -1) {
 							selector = splits[0];
 						}

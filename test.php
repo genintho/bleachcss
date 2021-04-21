@@ -2,7 +2,7 @@
 
 
 
-$url = 'http://localhost:3000/api/v1/probe/report';
+$url = 'http://localhost:3000/a/1/report';
 $data = array('k' => 'value1', 'v' => 'value2', 'f' => [
     'https://github.githubassets.com/assets/frameworks-3d85abd8e6af4fc72b0afa253e125ef9.css' => ['.btn']
 ]);
