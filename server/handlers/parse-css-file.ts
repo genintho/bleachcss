@@ -2,40 +2,36 @@ import type express from "express";
 import { findPattern } from "../lib/findPattern";
 import { process_css_file } from "./process_css_file";
 import { Parse1Api, Parse1ApiItem, QueryFcn } from "../../types/parse-css";
+import { Logger } from "../lib/Logger";
 
 const request_cache = new Map();
 
 export async function parseCssFile(
+	log: Logger,
 	req: express.Request,
 	res: express.Response
 ) {
-	console.time("Parse_CSS_File");
 	const css_file_url = req.query.url as string;
-	console.log(
-		"----------------------------------------------------------------------------"
-	);
-	console.log("Parse CSS file", req.query);
+	log.info("Parse CSS file", css_file_url);
 	if (!request_cache.has(css_file_url)) {
 		try {
-			const payload = await process(css_file_url);
+			const payload = await process(log, css_file_url);
 			request_cache.set(css_file_url, payload);
 		} catch (e) {
-			console.error("API Parse top level error");
-			console.error(e);
+			log.info("API Parse top level error");
+			log.info(e);
 		}
 	} else {
-		console.log("API Cache hit", css_file_url);
+		log.info("API Cache hit", css_file_url);
 	}
 
 	res.header("Content-Type", "application/json");
 	res.send(JSON.stringify(request_cache.get(css_file_url), null, 4));
-	console.log("API success");
-	console.timeEnd("Parse_CSS_File");
 }
 
-export async function process(url: string): Promise<Parse1Api> {
+export async function process(log: Logger, url: string): Promise<Parse1Api> {
 	const file_pattern = findPattern(url);
-	const selectors = await process_css_file(file_pattern);
+	const selectors = await process_css_file(log, file_pattern);
 	const arr = Array.from(selectors);
 	arr.sort();
 

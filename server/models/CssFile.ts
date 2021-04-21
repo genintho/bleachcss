@@ -1,8 +1,9 @@
 import * as db from "../db";
+import { Logger } from "../lib/Logger";
 
-export async function create(name: string) {
+export async function create(log: Logger, name: string) {
 	const db_connection = await db.connect();
-	console.log("css file create", name);
+	log.debug("css file create", name);
 	await db_connection.run(
 		"INSERT INTO css_file (name, created_at, seen_at) " +
 			"VALUES (:name, :created_at, :seen_at) " +
@@ -16,13 +17,13 @@ export async function create(name: string) {
 }
 
 export async function record_history(
+	log: Logger,
 	pattern: string,
 	url: string
 ): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
 		const db_connection = await db.connect();
 		try {
-			console.log("Record history");
 			await db_connection.run(
 				"INSERT INTO css_file_history(pattern, url, created_at) VALUES (:pattern, :url, :created_at);",
 				{ ":pattern": pattern, ":url": url, ":created_at": new Date() }
@@ -34,7 +35,7 @@ export async function record_history(
 				resolve(false);
 				return;
 			}
-			console.error("Can not record history", e);
+			log.error("Can not record history", e);
 			reject(false);
 		}
 		resolve(false);
