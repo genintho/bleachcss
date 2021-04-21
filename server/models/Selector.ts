@@ -1,4 +1,5 @@
 import * as db from "../db";
+import { Logger } from "../lib/Logger";
 
 export async function create(
 	file_pattern: string,
@@ -61,4 +62,30 @@ export async function removeAssociation(
 			":selector": selector,
 		});
 	}
+}
+
+export async function get_unused(
+	log: Logger,
+	since: number
+): Promise<string[]> {
+	const db_connection = await db.connect();
+	// @ts-ignore
+	return (
+		db_connection
+			// @TODO use seen_at date
+			.all(
+				"SELECT name FROM css_selector WHERE (seen_at IS NOT NULL AND seen_at < date('now', '-" +
+					Number(since) +
+					" days') ) OR (seen_at IS NULL AND created_at) < date('now', '-" +
+					Number(since) +
+					" days');"
+			)
+			//@ts-ignore
+			.then((res) => {
+				//@ts-ignore
+				return res.map((item) => {
+					return item.name;
+				});
+			})
+	);
 }

@@ -15,6 +15,10 @@ export class Logger {
 		this.log(chalk.redBright.bold, ...args);
 	}
 
+	public warn(...args: any[]) {
+		this.warning(...args);
+	}
+
 	public warning(...args: any[]) {
 		this.log(chalk.yellowBright, ...args);
 	}

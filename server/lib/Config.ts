@@ -20,6 +20,7 @@ export function get_config(log: Logger): Config {
 
 export interface Configuration {
 	readonly push_to_github?: boolean;
+	readonly github_personal_access_token?: string;
 	readonly repo_owner?: string;
 	readonly repo_name?: string;
 	readonly target_branch?: string;
@@ -33,8 +34,9 @@ export interface Configuration {
 
 export class Config {
 	private messages: string[] = [];
-	private errors: string[] = [];
+	private errs: string[] = [];
 	readonly push_to_github: boolean = false;
+	readonly github_personal_access_token: string | undefined;
 	readonly repo_owner: string | undefined;
 	readonly repo_name: string | undefined;
 	readonly target_branch: string = "master";
@@ -58,14 +60,24 @@ export class Config {
 			this.repo_owner = user_config.repo_owner;
 			this.messages.push(`✅ Repo Owner: '${this.repo_owner}'`);
 		} else {
-			this.errors.push("💥 Missing mandatory configuration 'repo_owner'");
+			this.errs.push("💥 Missing mandatory configuration 'repo_owner'");
 		}
 
 		if (user_config.repo_name) {
 			this.repo_name = user_config.repo_name;
 			this.messages.push(`✅ Repo Name: '${this.repo_name}'`);
 		} else {
-			this.errors.push("💥 Missing mandatory configuration 'repo_name'");
+			this.errs.push("💥 Missing mandatory configuration 'repo_name'");
+		}
+
+		if (user_config.github_personal_access_token) {
+			this.github_personal_access_token =
+				user_config.github_personal_access_token;
+			this.messages.push("✅ Github Personal Access Token");
+		} else {
+			this.errs.push(
+				"💥 Missing mandatory configuration 'github_personal_access_token'"
+			);
 		}
 
 		if (user_config.target_branch) {
@@ -87,9 +99,12 @@ export class Config {
 	}
 
 	get has_error(): boolean {
-		return this.errors.length > 0;
+		return this.errs.length > 0;
 	}
 	get logs() {
-		return Object.assign([], this.errors, this.messages);
+		return Object.assign([], this.errs, this.messages);
+	}
+	get errors() {
+		return Object.assign([], this.errs);
 	}
 }
