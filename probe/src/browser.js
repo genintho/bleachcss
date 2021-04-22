@@ -1,5 +1,5 @@
 import { Probe } from "./probe";
-const url = "https://f322a8dccbdb.ngrok.io";
+const url = "https://494d7db78f50.ngrok.io";
 window.BleachCSS = new Probe({
 	url,
 });
