@@ -29,17 +29,30 @@ export function toVariable(url: string) {
 /**
  * Download the content of a file into a file on the file system
  */
-export function toFile(url: string, destination: string): Promise<void> {
+export function toFile(
+	url: string,
+	destination: string,
+	auth_token: string
+): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
 		const file = fs.createWriteStream(destination);
 		https
-			.get(url, function (response) {
-				response.pipe(file);
-				file.on("finish", function () {
-					file.close(); // close() is async, call cb after close completes.
-					resolve();
-				});
-			})
+			.get(
+				url,
+				{
+					headers: {
+						// a
+						Authorization: "token " + auth_token,
+					},
+				},
+				function (response) {
+					response.pipe(file);
+					file.on("finish", function () {
+						file.close(); // close() is async, call cb after close completes.
+						resolve();
+					});
+				}
+			)
 			.on("error", function (err) {
 				// Handle errors
 				fs.unlinkSync(destination); // Delete the file async. (But we don't check the result)
