@@ -3,3 +3,5 @@ dist
 npm-debug.log
 .idea
 server/database.sqlite
+.DS_Store
+repo

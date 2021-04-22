@@ -1,5 +1,7 @@
+import extract_zip from "extract-zip";
 import * as fs from "fs";
 import * as path from "path";
+import * as zlib from "zlib";
 import * as Selector from "./server/models/Selector";
 import { Octokit } from "@octokit/rest";
 import * as Download from "./server/lib/download.utils";
@@ -26,7 +28,6 @@ async function main() {
 		log.info("Sync with Github is disable.");
 		process.exit(0);
 	}
-
 	const octokit = new Octokit({
 		log,
 		auth: config.github_personal_access_token,
@@ -271,17 +272,28 @@ async function downloadArchive(
 	octokit: Octokit,
 	config: Config
 ): Promise<string> {
-	const dir = path.resolve(__dirname, "repo");
-	const archiveTar = path.join(dir, "archive.tar.gz"); // @TODO random file name
+	const dir = path.resolve(__dirname, "repo", new Date().getTime().toString());
+	log.info("Root directory", dir);
+	fs.mkdirSync(dir);
+	const archive_tar = path.join(dir, "archive.zip"); // @TODO random file name
 	const archive_url = await getArchiveURL(log, octokit, config);
-	log.info(archive_url);
+	log.info("Archive URL", archive_url);
 	if (archive_url === undefined) {
 		log.error("Archive URL was not found");
 		process.exit(1);
 	}
-	await Download.toFile(archive_url, archiveTar);
-	// await Download.toFile(archiveUrl, archiveTar);
-	// await fsp.untar(archiveTar, tmpDir);
+	await Download.toFile(
+		archive_url,
+		archive_tar,
+		// @ts-ignore
+		config.github_personal_access_token
+	);
+	log.info(
+		"Archive downloaded with success. Size",
+		fs.statSync(archive_tar).size
+	);
+	await extract_zip(archive_tar, { dir });
+
 	return dir;
 }
 
