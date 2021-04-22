@@ -42,6 +42,7 @@ export class Config {
 	readonly target_branch: string = "master";
 	readonly pr_branch: string = "bleachcss";
 	readonly mark_unused_after: number = 30;
+	readonly max_num_selector = 25;
 
 	constructor(user_config: Configuration) {
 		if (user_config.push_to_github !== true) {

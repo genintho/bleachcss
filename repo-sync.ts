@@ -1,15 +1,15 @@
+import { exec } from "child_process";
 import extract_zip from "extract-zip";
 import * as fs from "fs";
 import * as path from "path";
-import * as zlib from "zlib";
 import * as Selector from "./server/models/Selector";
 import { Octokit } from "@octokit/rest";
 import * as Download from "./server/lib/download.utils";
 
-// ({
-
 import { Config, get_config } from "./server/lib/Config";
 import { Logger } from "./server/lib/Logger";
+import postcss from "postcss";
+import postcss_nested from "postcss-nested";
 
 (async () => {
 	await main();
@@ -24,12 +24,15 @@ async function main() {
 		log.error(config.errors);
 		process.exit(1);
 	}
-	if (config.push_to_github === false) {
+	if (!config.push_to_github) {
 		log.info("Sync with Github is disable.");
 		process.exit(0);
 	}
 	const octokit = new Octokit({
 		log,
+		headers: {
+			"user-agent": "BleachCSS", // GitHub is happy with a unique user agent
+		},
 		auth: config.github_personal_access_token,
 	});
 
@@ -44,52 +47,24 @@ async function main() {
 		process.exit(0);
 	}
 
-	await downloadArchive(log, octokit, config);
-	//
-	// /**
-	//  * This job will create or update a PR in the application repository.
-	//  * The PR will remove the CSS selector that we considered as unseen
-	//  */
-	// import * as _ from 'lodash';
-	// import * as DB from '../../lib/db';
-	// import * as postcss from 'postcss';
-	// import * as fsp from '../../lib/fsp';
-	// import * as PostCssWrap from '../../lib/tools/PostCssWrap';
-	//
-	// const GitHubApi = require('github');
-	// const postCssNested = require('postcss-nested');
-	//
-	// import createOrGetBranchSha from './createOrGetBranchSha';
-	// import downloadArchive from './downloadArchive';
-	// import normalizePath from './normalizePath';
-	//
-	// const BRANCH_NAME = 'bleachcss';
-	//
-	// export default async function main(logger, appId: number, githubToken: string, notifyJobComplete) {
-	// 	// @TODO Get all data from an application row
-	// 	const {owner, repo} = await getGithubInfos(appId);
-	// 	const gh = createGH(githubToken);
-	//
-	// 	// Fetch Archive url
-	// 	const defaultBranch = await getDefaultBranch(gh, owner, repo);
-	// 	logger.info('Repo default branch', defaultBranch);
-	//
-	// 	const codeDirectory = await downloadArchive(gh, owner, repo, defaultBranch);
-	// 	logger.info('Archive Directory', codeDirectory);
-	//
-	// 	const cssFiles = await fsp.findInPath(codeDirectory);
-	// 	logger.info('Found CSS files', cssFiles);
-	//
-	// 	const unusedSelectors = await DB.getAllUnusedSelectors(appId);
-	// 	const blobShas = await processFile(logger, gh, owner, repo, cssFiles, unusedSelectors);
-	//
-	// 	if (blobShas.size === 0) {
-	// 		logger.info('No blob got created, job is over');
-	// 		notifyJobComplete();
-	// 		return;
-	// 	}
-	//
-	// 	const branchSha = await createOrGetBranchSha(logger, gh, owner, repo, defaultBranch, BRANCH_NAME);
+	const repo_dir = await downloadArchive(log, octokit, config);
+
+	const css_files = await find_in_path(repo_dir);
+
+	const blobShas = await processFile(
+		log,
+		octokit,
+		config,
+		css_files,
+		unused_selectors
+	);
+
+	if (blobShas.size === 0) {
+		log.info("No blob got created, job is over");
+		return;
+	}
+
+	const branchSha = await createOrGetBranchSha(log, octokit, config);
 	//
 	// 	logger.info('Get HEAD tree hash');
 	// 	const baseTree = await gh.gitdata.getTree({owner, repo, sha: branchSha});
@@ -151,28 +126,6 @@ async function main() {
 	// 	notifyJobComplete();
 	// }
 	//
-	// function createGH(githubToken: string) {
-	// 	// const auth_token = 'c9022d8fbdeaded0ecf38f90a717bcd6958ab9df';
-	// 	const github = new GitHubApi({
-	// 		// optional
-	// 		debug: false,
-	// 		protocol: "https",
-	// 		// host: "github.my-GHE-enabled-company.com", // should be api.github.com for GitHub
-	// 		// pathPrefix: "/api/v3", // for some GHEs; none for GitHub
-	// 		headers: {
-	// 			"user-agent": "BleachCSS-Dev" // GitHub is happy with a unique user agent
-	// 		},
-	// 		Promise: Promise,
-	// 		followRedirects: false, // default: true; there's currently an issue with non-get redirects, so allow ability to disable follow-redirects
-	// 		timeout: 5000
-	// 	});
-	// 	github.authenticate({
-	// 		type: "oauth",
-	// 		token: githubToken
-	// 	});
-	// 	return github;
-	// }
-	//
 	// async function getDefaultBranch(github: any, owner: string, repo: string) {
 	// 	const response = await github.repos.get({owner, repo});
 	// 	if (_.has(response, 'data.default_branch')) {
@@ -181,47 +134,72 @@ async function main() {
 	// 	throw new Error("Can not finddefault branch");
 	// }
 	//
-	// async function processFile(logger, github, owner: string, repo: string, cssFiles: string[], unusedSelectors: Set<string>): Promise<Map<string, string>> {
-	// 	const blobShas = new Map();
-	//
-	// 	for(let filePath of cssFiles) {
-	// 		const fileContent = await fsp.read(filePath);
-	// 		const pCss = await postcss([postCssNested]).process(fileContent, {});
-	//
-	// 		if (!pCss.root) {
-	// 			throw new Error('PostCss parsing failed.');
-	// 		}
-	//
-	// 		let fileNeedToBeModified = false;
-	// 		pCss.root.walkRules((rule) => {
-	// 			// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
-	// 			if (unusedSelectors.has(rule.selector)) {
-	// 				logger.info('file %s unused selector "%s"', filePath, rule.selector);
-	// 				rule.remove();
-	// 				fileNeedToBeModified = true;
-	// 			}
-	// 		});
-	//
-	// 		if (!fileNeedToBeModified) {
-	// 			continue;
-	// 		}
-	// 		const cleanCss = await PostCssWrap.stringify(pCss);
-	// 		// await fsp.write(filePath, cleanCss);
-	// 		logger.info('Create a file blob for ', filePath);
-	// 		const blobRes = await github.gitdata.createBlob({
-	// 			owner: owner,
-	// 			repo: repo,
-	// 			encoding: 'utf-8',
-	// 			content: cleanCss
-	// 		});
-	// 		if (!_.has(blobRes, 'data.sha')) {
-	// 			throw new Error("No Sha in the blob");
-	// 		}
-	//
-	// 		blobShas.set(blobRes.data.sha, filePath);
-	// 	}
-	// 	return blobShas;
-	// }
+
+	if (fs.existsSync(repo_dir)) {
+		fs.rmSync(repo_dir, { recursive: true });
+	}
+
+	async function processFile(
+		log: Logger,
+		octokit: Octokit,
+		config: Config,
+		css_files: string[],
+		unused_selectors: string[]
+	): Promise<Map<string, string>> {
+		const postcss_file = new Map();
+
+		const selectors_removed = [];
+		const modified_files: Set<string> = new Set();
+
+		for (let filePath of css_files) {
+			const fileContent = fs.readFileSync(filePath, { encoding: "utf-8" });
+			const pCss = await postcss([postcss_nested]).process(fileContent, {});
+
+			if (!pCss.root) {
+				throw new Error("PostCss parsing failed.");
+			}
+			postcss_file.set(filePath, pCss);
+		}
+
+		unused_selectors.forEach((selector) => {
+			if (selectors_removed.length >= config.max_num_selector) {
+				return;
+			}
+			postcss_file.forEach((pcss, file) => {
+				pcss.root.walkRules((rule: any) => {
+					// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
+					if (rule.selector === selector) {
+						log.info('file %s unused selector "%s"', file, rule.selector);
+						rule.remove();
+						modified_files.add(file);
+					}
+				});
+			});
+		});
+
+		const blobSha1: Map<string, string> = new Map();
+		for (let file_path of Array.from(modified_files)) {
+			const clean_css = await new Promise<string>((resolve, reject) => {
+				let newCssStr = "";
+				postcss.stringify(postcss_file.get(file_path).root, (result) => {
+					newCssStr += result;
+				});
+				resolve(newCssStr);
+			});
+			const blobRes = await octokit.gitdata.createBlob({
+				owner: config.repo_owner,
+				repo: config.repo_name,
+				encoding: "utf-8",
+				content: clean_css,
+			});
+			// if (!_.has(blobRes, "data.sha")) {
+			// 	throw new Error("No Sha in the blob");
+			// }
+
+			blobSha1.set(blobRes.data.sha, file_path);
+		}
+		return blobSha1;
+	}
 	//
 	// function getTreeBlobs(blobShas: Map<string, string>, pathDir: string) {
 	// 	const res: any = [];
@@ -312,4 +290,66 @@ async function getArchiveURL(
 		repo: config.repo_name,
 	});
 	return response?.headers?.location;
+}
+
+export function find_in_path(path_input: string): Promise<string[]> {
+	return new Promise<string[]>((resolve, reject) => {
+		// @FIXME escape command
+		const cmd =
+			"find " +
+			path_input +
+			' -type f -iname "*.css" -or -iname "*.scss" -or -iname "*.sass" | grep -v node_modules';
+		exec(cmd, (error, stdout, stderr) => {
+			if (error) {
+				reject(`exec error: ${error}`);
+				return;
+			}
+			const files: string[] = [];
+			stdout.split("\n").forEach((filename) => {
+				if (filename.length) {
+					files.push(filename);
+				}
+			});
+			resolve(files);
+		});
+	});
+}
+
+async function createOrGetBranchSha(
+	log: Logger,
+	octokit: Octokit,
+	config: Config
+): Promise<string> {
+	// try {
+	// 	log.info("Try to create branch");
+	// 	const branch = await octokit.gitdata.getReference({
+	// 		owner: config.repo_owner,
+	// 		repo: config.repo_name,
+	// 		ref: "heads/" + config.target_branch,
+	// 	});
+	// 	if (_.has(branch, "data.object.sha")) {
+	// 		return branch.data.object.sha;
+	// 	}
+	// } catch (e) {
+	// 	// Nothing to o
+	// 	log.error(e);
+	// }
+
+	// Create a new Branch
+	log.info("Get Reference to HEAD hash");
+	const response = await octokit.gitdata.getReference({
+		owner: config.repo_owner,
+		repo: config.repo_name,
+		ref: "heads/" + config.target_branch,
+	});
+	const branchSha = response.data.object.sha;
+
+	// logger.info("Create new Reference");
+	// await github.gitdata.createReference({
+	// 	owner,
+	// 	repo,
+	// 	sha: branchSha,
+	// 	ref: "refs/heads/" + branchName,
+	// });
+	return branchSha;
 }
