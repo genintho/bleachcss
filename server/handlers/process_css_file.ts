@@ -23,15 +23,14 @@ export async function process_css_file(
 	log.info("Download CSS File", css_url_resource.url);
 	const css_file_content = await toVariable(css_url_resource.url);
 	const selectors_in_file = await postCssExtractor(css_file_content);
-	log.info("CSS File has %d selectors", selectors_in_file.size);
+	log.info(`CSS File has ${selectors_in_file.size} selectors`);
 	for (const selector of Array.from(selectors_in_file)) {
 		await Selector.create(css_url_resource.name, selector, false);
 	}
 
 	const selectors_in_db = await Selector.getFromFile(css_url_resource.name);
 	log.info(
-		"CSS File has %d selectors referenced in the DB",
-		selectors_in_db.length
+		`CSS File has ${selectors_in_db.length} selectors referenced in the DB`
 	);
 	for (const record of selectors_in_db) {
 		// Selector is not found in the CSS file

@@ -9,7 +9,7 @@ import { Logger } from "./lib/Logger";
 const log = new Logger("www");
 
 (async () => {
-	await db.aaa();
+	await db.run_migrations();
 })();
 
 const app = express();
