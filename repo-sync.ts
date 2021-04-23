@@ -10,9 +10,14 @@ import { Config, get_config } from "./server/lib/Config";
 import { Logger } from "./server/lib/Logger";
 import postcss from "postcss";
 import postcss_nested from "postcss-nested";
+import postcss_scss from "postcss-scss";
 
 (async () => {
-	await main();
+	try {
+		await main();
+	} catch (e) {
+		console.log(e);
+	}
 })();
 
 async function main() {
@@ -51,7 +56,7 @@ async function main() {
 
 	const css_files = await find_in_path(repo_dir);
 
-	const blobShas = await processFile(
+	const { new_content, path_blob } = await processFile(
 		log,
 		octokit,
 		config,
@@ -59,45 +64,58 @@ async function main() {
 		unused_selectors
 	);
 
-	if (blobShas.size === 0) {
-		log.info("No blob got created, job is over");
+	if (new_content.size === 0) {
+		log.info("Nothing changed, script is over");
 		return;
 	}
 
 	const branchSha = await createOrGetBranchSha(log, octokit, config);
+
+	// log.info("Get HEAD tree hash");
+	// const baseTree = await octokit.git.getTree({ owner, repo, sha: branchSha });
 	//
-	// 	logger.info('Get HEAD tree hash');
-	// 	const baseTree = await gh.gitdata.getTree({owner, repo, sha: branchSha});
+	log.info("Create a new tree");
+	const newTree = await octokit.git.createTree({
+		// @ts-expect-error
+		repo: config.repo_owner,
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// base_tree: branchSha,
+		tree: getTreeBlobs(repo_dir, new_content, path_blob),
+	});
+	console.log(newTree);
+	await sleep(5000);
+	log.info("Commit changes");
+	try {
+		const commitResponse = await octokit.git.createCommit({
+			// @ts-expect-error
+			owner: config.repo_owner,
+			// @ts-expect-error
+			repo: config.repo_name,
+			message: "BleachCSS -" + new Date().toISOString(),
+			tree: newTree.data.sha,
+			parents: [branchSha],
+			author: {
+				name: "BleachCSS",
+				email: "thomas@bleachcss.com",
+				date: new Date().toISOString(),
+			},
+		});
+	} catch (e) {
+		console.log(e);
+		return;
+	}
 	//
-	// 	logger.info('Create a new tree');
-	// 	const newTree = await gh.gitdata.createTree({
-	// 		repo: repo,
-	// 		owner: owner,
-	// 		base_tree: baseTree.data.sha,
-	// 		tree: getTreeBlobs(blobShas, codeDirectory)
-	// 	});
-	//
-	// 	logger.info('Commit changes');
-	// 	const commitResponse = await gh.gitdata.createCommit({
-	// 		owner,
-	// 		repo,
-	// 		message: 'BleachCSS -' + new Date().toISOString(),
-	// 		tree: newTree.data.sha,
-	// 		parents: [branchSha],
-	// 		author: {
-	// 			name: 'BleachCSS',
-	// 			email: 'thomas@bleachcss.com',
-	// 			date: new Date().toISOString()
-	// 		}
-	// 	});
-	//
-	// 	logger.info('Map branch HEAD to new commit Hash');
-	// 	await gh.gitdata.updateReference({
-	// 		owner,
-	// 		repo,
-	// 		ref: 'heads/' + BRANCH_NAME,
-	// 		sha: commitResponse.data.sha
-	// 	});
+	log.info("Map branch HEAD to new commit Hash");
+	await octokit.git.updateRef({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		ref: "heads/" + config.pr_branch,
+		// sha: commitResponse.data.sha,
+		force: true,
+	});
 	//
 	// 	try {
 	// 		logger.info('Try to create Pull request');
@@ -145,20 +163,27 @@ async function main() {
 		config: Config,
 		css_files: string[],
 		unused_selectors: string[]
-	): Promise<Map<string, string>> {
+	): Promise<{
+		path_blob: Map<string, string>;
+		new_content: Map<string, string>;
+	}> {
 		const postcss_file = new Map();
 
 		const selectors_removed = [];
 		const modified_files: Set<string> = new Set();
 
-		for (let filePath of css_files) {
-			const fileContent = fs.readFileSync(filePath, { encoding: "utf-8" });
-			const pCss = await postcss([postcss_nested]).process(fileContent, {});
+		for (let file_path of css_files) {
+			log.debug("Process CSS file", file_path);
+			const fileContent = fs.readFileSync(file_path, { encoding: "utf-8" });
+			const pCss = await postcss([postcss_nested]).process(fileContent, {
+				from: undefined,
+				parser: postcss_scss,
+			});
 
 			if (!pCss.root) {
 				throw new Error("PostCss parsing failed.");
 			}
-			postcss_file.set(filePath, pCss);
+			postcss_file.set(file_path, pCss);
 		}
 
 		unused_selectors.forEach((selector) => {
@@ -177,8 +202,10 @@ async function main() {
 			});
 		});
 
-		const blobSha1: Map<string, string> = new Map();
+		const new_content: Map<string, string> = new Map();
+		const path_blob: Map<string, string> = new Map();
 		for (let file_path of Array.from(modified_files)) {
+			log.debug("Regenerate file", file_path);
 			const clean_css = await new Promise<string>((resolve, reject) => {
 				let newCssStr = "";
 				postcss.stringify(postcss_file.get(file_path).root, (result) => {
@@ -186,33 +213,56 @@ async function main() {
 				});
 				resolve(newCssStr);
 			});
-			const blobRes = await octokit.gitdata.createBlob({
-				owner: config.repo_owner,
-				repo: config.repo_name,
-				encoding: "utf-8",
-				content: clean_css,
-			});
-			// if (!_.has(blobRes, "data.sha")) {
-			// 	throw new Error("No Sha in the blob");
-			// }
 
-			blobSha1.set(blobRes.data.sha, file_path);
+			new_content.set(file_path, clean_css);
+			log.debug("Create blog for file", file_path);
+			// const blobRes = await octokit.git.createBlob({
+			// 	// @ts-expect-error
+			// 	owner: config.repo_owner,
+			// 	// @ts-expect-error
+			// 	repo: config!.repo_name,
+			// 	encoding: "utf-8",
+			// 	content: clean_css,
+			// });
+			// path_blob.set(file_path, blobRes.data.sha);
 		}
-		return blobSha1;
+		return { new_content, path_blob };
 	}
 	//
-	// function getTreeBlobs(blobShas: Map<string, string>, pathDir: string) {
-	// 	const res: any = [];
-	// 	blobShas.forEach((filePath, sha) => {
-	// 		res.push({
-	// 			path: normalizePath(filePath, pathDir),
-	// 			type: 'blob',
-	// 			sha,
-	// 			mode: '100644'
-	// 		});
-	// 	});
-	// 	return res;
-	// }
+	function getTreeBlobs(
+		dir: string,
+		new_content: Map<string, string>,
+		path_blob: Map<string, string>
+	) {
+		const res: any = [];
+		new_content.forEach((content, path) => {
+			res.push({
+				path: normalizePath(dir, path),
+				type: "blob",
+				content,
+				// sha: path_blob.get(path),
+				mode: "100644",
+			});
+		});
+		// console.log(res);
+		return res;
+	}
+
+	function normalizePath(dir: string, filePath: string): string {
+		// filePath = /tmp/job_create_prc2A8to/genintho-test-b6b72f9/css/test.css
+		const a = filePath.replace(dir, "");
+		// a /genintho-test-b6b72f9/css/test.css
+
+		const b = a.split("/");
+		// b [ 'genintho-test-b6b72f9', 'css', 'test.css' ]
+		b.shift();
+		b.shift();
+
+		// b2 [ 'css', 'test.css' ]
+		const c = b.join("/");
+		// c css/test.css
+		return c;
+	}
 	//
 	//
 	// async function getGithubInfos(appId: number): Promise<{owner: string, repo: string}> {
@@ -320,36 +370,48 @@ async function createOrGetBranchSha(
 	octokit: Octokit,
 	config: Config
 ): Promise<string> {
-	// try {
-	// 	log.info("Try to create branch");
-	// 	const branch = await octokit.gitdata.getReference({
-	// 		owner: config.repo_owner,
-	// 		repo: config.repo_name,
-	// 		ref: "heads/" + config.target_branch,
-	// 	});
-	// 	if (_.has(branch, "data.object.sha")) {
-	// 		return branch.data.object.sha;
-	// 	}
-	// } catch (e) {
-	// 	// Nothing to o
-	// 	log.error(e);
-	// }
+	try {
+		log.info("Try to get branch");
+		const branch = await octokit.git.getRef({
+			// @ts-expect-error
+			owner: config.repo_owner,
+			// @ts-expect-error
+			repo: config.repo_name,
+			ref: "heads/" + config.pr_branch,
+		});
+		if (branch.data.object.sha) {
+			return branch.data.object.sha;
+		}
+		// if (_.has(branch, "data.object.sha")) {
+		// 	return branch.data.object.sha;
+		// }
+	} catch (e) {
+		// Nothing to o
+		log.error(e);
+	}
 
 	// Create a new Branch
 	log.info("Get Reference to HEAD hash");
-	const response = await octokit.gitdata.getReference({
+	const response = await octokit.git.getRef({
+		// @ts-expect-error
 		owner: config.repo_owner,
+		// @ts-expect-error
 		repo: config.repo_name,
 		ref: "heads/" + config.target_branch,
 	});
-	const branchSha = response.data.object.sha;
-
-	// logger.info("Create new Reference");
-	// await github.gitdata.createReference({
-	// 	owner,
-	// 	repo,
-	// 	sha: branchSha,
-	// 	ref: "refs/heads/" + branchName,
-	// });
-	return branchSha;
+	const branch_sha = response.data.object.sha;
+	log.info("Sha of head branch", branch_sha);
+	log.info("Create new Reference");
+	await octokit.git.createRef({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		sha: branch_sha,
+		ref: "refs/heads/" + config.pr_branch,
+	});
+	return branch_sha;
+}
+function sleep(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
