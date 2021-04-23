@@ -25,7 +25,7 @@ export async function process_css_file(
 	const selectors_in_file = await postCssExtractor(css_file_content);
 	log.info(`CSS File has ${selectors_in_file.size} selectors`);
 	for (const selector of Array.from(selectors_in_file)) {
-		await Selector.create(css_url_resource.name, selector, false);
+		await Selector.createOrIgnore(css_url_resource.name, selector);
 	}
 
 	const selectors_in_db = await Selector.getFromFile(css_url_resource.name);
