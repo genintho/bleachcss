@@ -2,24 +2,11 @@ import * as db from "../db";
 import type { Logger } from "../lib/Logger";
 import type sqlite3 from "sqlite3";
 
-export async function create(
-	file_pattern: string,
-	selector: string,
-	is_seen: boolean
-) {
-	const db_connection = await db.connect();
-	if (is_seen) {
-		await createOrUpdateSeen(db_connection, file_pattern, selector);
-	} else {
-		await createOrIgnore(db_connection, file_pattern, selector);
-	}
-}
-
 export async function createOrUpdateSeen(
-	db_connection: sqlite3.Database,
 	file_pattern: string,
 	selector: string
 ) {
+	const db_connection = await db.connect();
 	await db_connection.run(
 		"INSERT INTO css_selector (name, created_at, seen_at) " +
 			"VALUES (:name, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) " +
@@ -31,11 +18,8 @@ export async function createOrUpdateSeen(
 	await insert_file_selector(db_connection, selector, file_pattern);
 }
 
-export async function createOrIgnore(
-	db_connection: sqlite3.Database,
-	file_pattern: string,
-	selector: string
-) {
+export async function createOrIgnore(file_pattern: string, selector: string) {
+	const db_connection = await db.connect();
 	await db_connection.run(
 		"INSERT INTO css_selector (name, created_at, seen_at) " +
 			"VALUES (:name, CURRENT_TIMESTAMP, NULL) " +

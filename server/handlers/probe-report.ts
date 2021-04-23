@@ -38,7 +38,7 @@ async function process_v01(log: Logger, payload: ProbeApiV1) {
 		const selectors = payload.f[file_url];
 		log.info(selectors.length, "selectors1");
 		for (const selector of selectors) {
-			await Selector.create(file_pattern.name, selector, true);
+			await Selector.createOrUpdateSeen(file_pattern.name, selector);
 		}
 		await process_css_file(log, file_pattern);
 	}
