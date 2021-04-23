@@ -1,5 +1,6 @@
 import * as db from "../db";
-import { Logger } from "../lib/Logger";
+import type { Logger } from "../lib/Logger";
+import type sqlite3 from "sqlite3";
 
 export async function create(
 	file_pattern: string,
@@ -7,18 +8,50 @@ export async function create(
 	is_seen: boolean
 ) {
 	const db_connection = await db.connect();
-	// console.log("selector create", name);
+	if (is_seen) {
+		await createOrUpdateSeen(db_connection, file_pattern, selector);
+	} else {
+		await createOrIgnore(db_connection, file_pattern, selector);
+	}
+}
+
+export async function createOrUpdateSeen(
+	db_connection: sqlite3.Database,
+	file_pattern: string,
+	selector: string
+) {
 	await db_connection.run(
 		"INSERT INTO css_selector (name, created_at, seen_at) " +
-			"VALUES (:name, :created_at, :seen_at) " +
-			"ON CONFLICT (name) DO UPDATE SET seen_at=:seen_at WHERE name=:name;",
+			"VALUES (:name, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) " +
+			"ON CONFLICT (name) DO UPDATE SET seen_at=CURRENT_TIMESTAMP WHERE name=:name;",
 		{
 			":name": selector,
-			":created_at": new Date(),
-			":seen_at": is_seen ? new Date() : null,
 		}
 	);
+	await insert_file_selector(db_connection, selector, file_pattern);
+}
 
+export async function createOrIgnore(
+	db_connection: sqlite3.Database,
+	file_pattern: string,
+	selector: string
+) {
+	await db_connection.run(
+		"INSERT INTO css_selector (name, created_at, seen_at) " +
+			"VALUES (:name, CURRENT_TIMESTAMP, NULL) " +
+			"ON CONFLICT (name) DO NOTHING;",
+		{
+			":name": selector,
+		}
+	);
+	await insert_file_selector(db_connection, selector, file_pattern);
+}
+
+async function insert_file_selector(
+	db_connection: sqlite3.Database,
+	selector: string,
+	file_pattern: string
+) {
 	await db_connection.run(
 		"INSERT OR IGNORE INTO file_selector (selector, file) " +
 			"VALUES (:selector, :file) ;",

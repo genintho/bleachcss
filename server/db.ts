@@ -4,18 +4,23 @@ import * as path from "path";
 
 // sqlite3.verbose();
 
+// const ss = new Set();
 export async function connect(): Promise<sqlite3.Database> {
 	const cache = ((await open({
 		filename: path.resolve(__dirname, "./database.sqlite"),
 		driver: sqlite3.cached.Database,
 	})) as unknown) as sqlite3.Database;
 	// cache.on("trace", (data) => {
-	// console.log(data);
+	// 	if (ss.has(data)) {
+	// 		return;
+	// 	}
+	// 	console.log(data);
+	// 	ss.add(data);
 	// });
 	return cache;
 }
 
-export async function aaa() {
+export async function run_migrations() {
 	const db_connect = await connect();
 	// @ts-ignore
 	await db_connect.migrate({
