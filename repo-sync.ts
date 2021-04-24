@@ -68,75 +68,36 @@ async function main() {
 		log.info("Nothing changed, script is over");
 		return;
 	}
-	// const diff: Record<string, string> = {};
-	// new_content.forEach((content, path) => {
-	// 	diff[normalizePath(repo_dir, path)] = content;
-	// });
-	// octokit
-	// 	.createPullRequest({
-	// 		// @ts-expect-error
-	// 		owner: config.repo_owner,
-	// 		// @ts-expect-error
-	// 		repo: config.repo_name,
-	// 		title: "pull request title",
-	// 		body: "pull request description",
-	// 		// base: "main" /* optional: defaults to default branch */,
-	// 		head: config.pr_branch + new Date().getTime(),
-	// 		changes: [
-	// 			{
-	// 				/* optional: if `files` is not passed, an empty commit is created instead */
-	// 				files: diff,
-	// 				commit:
-	// 					"creating file1.txt, file2.png, deleting file3.txt, updating file4.txt (if it exists)",
-	// 			},
-	// 		],
-	// 	})
-	// 	.then((pr) => console.log(pr?.data.number));
-	// const latestCommit = await octokit.repos.getCommit({
-	// 	// @ts-expect-error
-	// 	repo: config.repo_name,
-	// 	// @ts-expect-error
-	// 	owner: config.repo_owner,
-	// 	sha: config.target_branch,
-	// 	per_page: 1,
-	// });
-	// debugger;
-	const branchSha = await createOrGetBranchSha(log, octokit, config);
-	const most_recent_commit_sha = await octokit.git.getCommit({
-		// @ts-expect-error
-		repo: config.repo_name,
-		// @ts-expect-error
-		owner: config.repo_owner,
-		commit_sha: branchSha,
-	});
+
+	await createOrGetBranchSha(log, octokit, config);
+
+	const { head_commit_sha, tree_recent_commit_sha } = await get_recent_commit(
+		log,
+		octokit,
+		config
+	);
 
 	log.info("Create a new tree");
-	const new_tree = await octokit.git.createTree({
+	const {
+		data: { sha: new_tree_sha },
+	} = await octokit.git.createTree({
 		// @ts-expect-error
 		repo: config.repo_name,
 		// @ts-expect-error
 		owner: config.repo_owner,
-		base_tree: most_recent_commit_sha.data.tree.sha,
+		base_tree: tree_recent_commit_sha,
 		tree: getTreeBlobs(repo_dir, new_content),
 	});
-	// console.log(newTree);
-	await sleep(5000);
-	log.info("Commit changes");
-	const commitResponse = await octokit.git.createCommit({
-		// @ts-expect-error
-		owner: config.repo_owner,
-		// @ts-expect-error
-		repo: config.repo_name,
-		message: "BleachCSS -" + new Date().toISOString(),
-		tree: new_tree.data.sha,
-		parents: [branchSha],
-		author: {
-			name: "BleachCSS",
-			email: "thomas@bleachcss.com",
-			date: new Date().toISOString(),
-		},
-	});
-	//
+	log.info("Tree sha", new_tree_sha);
+
+	const new_commit_sha = await create_commit(
+		log,
+		octokit,
+		config,
+		new_tree_sha,
+		head_commit_sha
+	);
+
 	log.info("Map branch HEAD to new commit Hash");
 	await octokit.git.updateRef({
 		// @ts-expect-error
@@ -144,51 +105,88 @@ async function main() {
 		// @ts-expect-error
 		repo: config.repo_name,
 		ref: "heads/" + config.pr_branch,
-		sha: commitResponse.data.sha,
+		sha: new_commit_sha,
 		force: true,
 	});
+	log.info("Branch has been updated");
 
-	// /. ============
-
-	//
-	// 	try {
-	// 		logger.info('Try to create Pull request');
-	// 		await gh.pullRequests.create({
-	// 			owner,
-	// 			repo,
-	// 			title: '[BleachCss] - Remove unused CSS selectors',
-	// 			head: BRANCH_NAME,
-	// 			base: defaultBranch,
-	// 			body: '#Hello'
-	// 		});
-	// 	} catch (e) {
-	// 		// TODO handle case where the PR already exists.
-	// 		// -> Adding a comment to mention it got updated?
-	// 		logger.error(e);
-	// 	}
-	//
-	// 	// Cleanup
-	// 	try {
-	// 		logger.info('Clean up directories');
-	// 		fsp.rmDir(codeDirectory);
-	// 	} catch(e) {
-	// 		logger.error(e);
-	// 	}
-	// 	logger.info('Done');
-	// 	notifyJobComplete();
-	// }
-	//
-	// async function getDefaultBranch(github: any, owner: string, repo: string) {
-	// 	const response = await github.repos.get({owner, repo});
-	// 	if (_.has(response, 'data.default_branch')) {
-	// 		return response.data.default_branch;
-	// 	}
-	// 	throw new Error("Can not finddefault branch");
-	// }
-	//
+	await create_pr(log, octokit, config);
 
 	if (fs.existsSync(repo_dir)) {
 		fs.rmSync(repo_dir, { recursive: true });
+	}
+	log.info("Done");
+}
+
+async function get_recent_commit(
+	log: Logger,
+	octokit: Octokit,
+	config: Config
+) {
+	log.info("Get target branch most recent commit");
+	const most_recent_commit_sha = await octokit.repos.getCommit({
+		// @ts-expect-error
+		repo: config.repo_name,
+		// @ts-expect-error
+		owner: config.repo_owner,
+		per_page: 1,
+		ref: config.target_branch,
+	});
+	log.info("Most recent commit ", most_recent_commit_sha.data.sha);
+	return {
+		tree_recent_commit_sha: most_recent_commit_sha.data.commit.tree.sha,
+		head_commit_sha: most_recent_commit_sha.data.sha,
+	};
+}
+
+async function create_commit(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	new_tree_sha: string,
+	head_commit_sha: string
+) {
+	log.info("Commit changes");
+	const {
+		data: { sha: new_commit_sha },
+	} = await octokit.git.createCommit({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		message: "BleachCSS -" + new Date().toISOString(),
+		tree: new_tree_sha,
+		parents: [head_commit_sha],
+		author: {
+			name: "BleachCSS",
+			email: "thomas@bleachcss.com",
+			date: new Date().toISOString(),
+		},
+	});
+	log.info("New commit sha", new_commit_sha);
+	return new_commit_sha;
+}
+
+async function create_pr(log: Logger, octokit: Octokit, config: Config) {
+	try {
+		log.info("Try to create Pull request");
+		await octokit.pulls.create({
+			// @ts-expect-error
+			repo: config.repo_name,
+			// @ts-expect-error
+			owner: config.repo_owner,
+			title: "[BleachCss] - Remove unused CSS selectors",
+			head: config.pr_branch,
+			base: config.target_branch,
+			body: "#Hello",
+		});
+	} catch (e) {
+		debugger;
+		if (!e.errors[0].message.startsWith("A pull request already exists")) {
+			log.error(e);
+		} else {
+			log.info("PR already exists");
+		}
 	}
 }
 
@@ -201,7 +199,7 @@ async function processFile(
 ): Promise<Map<string, string>> {
 	const postcss_file = new Map();
 
-	const selectors_removed = [];
+	const selectors_removed: Set<string> = new Set();
 	const modified_files: Set<string> = new Set();
 
 	for (let file_path of css_files) {
@@ -219,16 +217,18 @@ async function processFile(
 	}
 
 	unused_selectors.forEach((selector) => {
-		if (selectors_removed.length >= config.max_num_selector) {
+		// if (selectors_removed.size >= config.max_num_selector) {
+		if (selectors_removed.size >= 2) {
 			return;
 		}
-		postcss_file.forEach((pcss, file) => {
-			pcss.root.walkRules((rule: any) => {
+		postcss_file.forEach((postcss_file_instance, file) => {
+			postcss_file_instance.root.walkRules((rule: any) => {
 				// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
 				if (rule.selector === selector) {
 					log.info('file %s unused selector "%s"', file, rule.selector);
 					rule.remove();
 					modified_files.add(file);
+					selectors_removed.add(selector);
 				}
 			});
 		});
@@ -237,7 +237,7 @@ async function processFile(
 	const new_content: Map<string, string> = new Map();
 	for (let file_path of Array.from(modified_files)) {
 		log.debug("Regenerate file", file_path);
-		const clean_css = await new Promise<string>((resolve, reject) => {
+		const clean_css = await new Promise<string>((resolve) => {
 			let newCssStr = "";
 			postcss.stringify(postcss_file.get(file_path).root, (result) => {
 				newCssStr += result;
@@ -269,14 +269,13 @@ function normalizePath(dir: string, filePath: string): string {
 	// a /genintho-test-b6b72f9/css/test.css
 
 	const b = a.split("/");
-	// b [ 'genintho-test-b6b72f9', 'css', 'test.css' ]
+	// b [ '', 'genintho-test-b6b72f9', 'css', 'test.css' ]
 	b.shift();
 	b.shift();
 
 	// b2 [ 'css', 'test.css' ]
-	const c = b.join("/");
+	return b.join("/");
 	// c css/test.css
-	return c;
 }
 
 async function downloadArchive(
@@ -372,7 +371,7 @@ async function createOrGetBranchSha(
 		log.error(e);
 	}
 	// Create a new Branch
-	log.info("Branch does not exists, createa new one");
+	log.info("Branch does not exists, create a new one");
 	log.info("Get Reference to HEAD hash");
 	const response = await octokit.git.getRef({
 		// @ts-expect-error
@@ -382,8 +381,8 @@ async function createOrGetBranchSha(
 		ref: "heads/" + config.target_branch,
 	});
 	const branch_sha = response.data.object.sha;
-	log.info("Sha of head branch", branch_sha);
-	log.info("Create new Reference");
+	log.info("sha of head branch", branch_sha);
+	log.info("Create new Branch");
 	await octokit.git.createRef({
 		// @ts-expect-error
 		owner: config.repo_owner,
@@ -392,8 +391,6 @@ async function createOrGetBranchSha(
 		sha: branch_sha,
 		ref: "refs/heads/" + config.pr_branch,
 	});
+	log.info("Branch created");
 	return branch_sha;
-}
-function sleep(ms: number) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
 }
