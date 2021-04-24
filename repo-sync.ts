@@ -56,7 +56,7 @@ async function main() {
 
 	const css_files = await find_in_path(repo_dir);
 
-	const { new_content, path_blob } = await processFile(
+	const new_content = await processFile(
 		log,
 		octokit,
 		config,
@@ -68,43 +68,74 @@ async function main() {
 		log.info("Nothing changed, script is over");
 		return;
 	}
-
+	// const diff: Record<string, string> = {};
+	// new_content.forEach((content, path) => {
+	// 	diff[normalizePath(repo_dir, path)] = content;
+	// });
+	// octokit
+	// 	.createPullRequest({
+	// 		// @ts-expect-error
+	// 		owner: config.repo_owner,
+	// 		// @ts-expect-error
+	// 		repo: config.repo_name,
+	// 		title: "pull request title",
+	// 		body: "pull request description",
+	// 		// base: "main" /* optional: defaults to default branch */,
+	// 		head: config.pr_branch + new Date().getTime(),
+	// 		changes: [
+	// 			{
+	// 				/* optional: if `files` is not passed, an empty commit is created instead */
+	// 				files: diff,
+	// 				commit:
+	// 					"creating file1.txt, file2.png, deleting file3.txt, updating file4.txt (if it exists)",
+	// 			},
+	// 		],
+	// 	})
+	// 	.then((pr) => console.log(pr?.data.number));
+	// const latestCommit = await octokit.repos.getCommit({
+	// 	// @ts-expect-error
+	// 	repo: config.repo_name,
+	// 	// @ts-expect-error
+	// 	owner: config.repo_owner,
+	// 	sha: config.target_branch,
+	// 	per_page: 1,
+	// });
+	// debugger;
 	const branchSha = await createOrGetBranchSha(log, octokit, config);
-
-	// log.info("Get HEAD tree hash");
-	// const baseTree = await octokit.git.getTree({ owner, repo, sha: branchSha });
-	//
-	log.info("Create a new tree");
-	const newTree = await octokit.git.createTree({
+	const most_recent_commit_sha = await octokit.git.getCommit({
 		// @ts-expect-error
-		repo: config.repo_owner,
+		repo: config.repo_name,
 		// @ts-expect-error
 		owner: config.repo_owner,
-		// base_tree: branchSha,
-		tree: getTreeBlobs(repo_dir, new_content, path_blob),
+		commit_sha: branchSha,
 	});
-	console.log(newTree);
+
+	log.info("Create a new tree");
+	const new_tree = await octokit.git.createTree({
+		// @ts-expect-error
+		repo: config.repo_name,
+		// @ts-expect-error
+		owner: config.repo_owner,
+		base_tree: most_recent_commit_sha.data.tree.sha,
+		tree: getTreeBlobs(repo_dir, new_content),
+	});
+	// console.log(newTree);
 	await sleep(5000);
 	log.info("Commit changes");
-	try {
-		const commitResponse = await octokit.git.createCommit({
-			// @ts-expect-error
-			owner: config.repo_owner,
-			// @ts-expect-error
-			repo: config.repo_name,
-			message: "BleachCSS -" + new Date().toISOString(),
-			tree: newTree.data.sha,
-			parents: [branchSha],
-			author: {
-				name: "BleachCSS",
-				email: "thomas@bleachcss.com",
-				date: new Date().toISOString(),
-			},
-		});
-	} catch (e) {
-		console.log(e);
-		return;
-	}
+	const commitResponse = await octokit.git.createCommit({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		message: "BleachCSS -" + new Date().toISOString(),
+		tree: new_tree.data.sha,
+		parents: [branchSha],
+		author: {
+			name: "BleachCSS",
+			email: "thomas@bleachcss.com",
+			date: new Date().toISOString(),
+		},
+	});
 	//
 	log.info("Map branch HEAD to new commit Hash");
 	await octokit.git.updateRef({
@@ -113,9 +144,12 @@ async function main() {
 		// @ts-expect-error
 		repo: config.repo_name,
 		ref: "heads/" + config.pr_branch,
-		// sha: commitResponse.data.sha,
+		sha: commitResponse.data.sha,
 		force: true,
 	});
+
+	// /. ============
+
 	//
 	// 	try {
 	// 		logger.info('Try to create Pull request');
@@ -156,144 +190,94 @@ async function main() {
 	if (fs.existsSync(repo_dir)) {
 		fs.rmSync(repo_dir, { recursive: true });
 	}
-
-	async function processFile(
-		log: Logger,
-		octokit: Octokit,
-		config: Config,
-		css_files: string[],
-		unused_selectors: string[]
-	): Promise<{
-		path_blob: Map<string, string>;
-		new_content: Map<string, string>;
-	}> {
-		const postcss_file = new Map();
-
-		const selectors_removed = [];
-		const modified_files: Set<string> = new Set();
-
-		for (let file_path of css_files) {
-			log.debug("Process CSS file", file_path);
-			const fileContent = fs.readFileSync(file_path, { encoding: "utf-8" });
-			const pCss = await postcss([postcss_nested]).process(fileContent, {
-				from: undefined,
-				parser: postcss_scss,
-			});
-
-			if (!pCss.root) {
-				throw new Error("PostCss parsing failed.");
-			}
-			postcss_file.set(file_path, pCss);
-		}
-
-		unused_selectors.forEach((selector) => {
-			if (selectors_removed.length >= config.max_num_selector) {
-				return;
-			}
-			postcss_file.forEach((pcss, file) => {
-				pcss.root.walkRules((rule: any) => {
-					// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
-					if (rule.selector === selector) {
-						log.info('file %s unused selector "%s"', file, rule.selector);
-						rule.remove();
-						modified_files.add(file);
-					}
-				});
-			});
-		});
-
-		const new_content: Map<string, string> = new Map();
-		const path_blob: Map<string, string> = new Map();
-		for (let file_path of Array.from(modified_files)) {
-			log.debug("Regenerate file", file_path);
-			const clean_css = await new Promise<string>((resolve, reject) => {
-				let newCssStr = "";
-				postcss.stringify(postcss_file.get(file_path).root, (result) => {
-					newCssStr += result;
-				});
-				resolve(newCssStr);
-			});
-
-			new_content.set(file_path, clean_css);
-			log.debug("Create blog for file", file_path);
-			// const blobRes = await octokit.git.createBlob({
-			// 	// @ts-expect-error
-			// 	owner: config.repo_owner,
-			// 	// @ts-expect-error
-			// 	repo: config!.repo_name,
-			// 	encoding: "utf-8",
-			// 	content: clean_css,
-			// });
-			// path_blob.set(file_path, blobRes.data.sha);
-		}
-		return { new_content, path_blob };
-	}
-	//
-	function getTreeBlobs(
-		dir: string,
-		new_content: Map<string, string>,
-		path_blob: Map<string, string>
-	) {
-		const res: any = [];
-		new_content.forEach((content, path) => {
-			res.push({
-				path: normalizePath(dir, path),
-				type: "blob",
-				content,
-				// sha: path_blob.get(path),
-				mode: "100644",
-			});
-		});
-		// console.log(res);
-		return res;
-	}
-
-	function normalizePath(dir: string, filePath: string): string {
-		// filePath = /tmp/job_create_prc2A8to/genintho-test-b6b72f9/css/test.css
-		const a = filePath.replace(dir, "");
-		// a /genintho-test-b6b72f9/css/test.css
-
-		const b = a.split("/");
-		// b [ 'genintho-test-b6b72f9', 'css', 'test.css' ]
-		b.shift();
-		b.shift();
-
-		// b2 [ 'css', 'test.css' ]
-		const c = b.join("/");
-		// c css/test.css
-		return c;
-	}
-	//
-	//
-	// async function getGithubInfos(appId: number): Promise<{owner: string, repo: string}> {
-	// 	const app = await DB.getApp(appId);
-	// 	if (!app.repo_name) {
-	// 		throw new Error("No github infos");
-	// 	}
-	//
-	// 	const split = app.repo_name.split('/');
-	// 	if (split.length != 2) {
-	// 		throw new Error("Invalid github infos");
-	// 	}
-	//
-	// 	const owner = split[0];
-	// 	if (owner.length === 0) {
-	// 		throw new Error("Invalid repo owner");
-	// 	}
-	//
-	// 	const repo = split[1];
-	// 	if (repo.length === 0) {
-	// 		throw new Error("Invalid repo");
-	// 	}
-	//
-	// 	return {owner, repo};
-	// }
 }
 
-// import * as _ from 'lodash';
-// import * as Download from '../../lib/Download';
-// import * as path from 'path';
-// import * as fsp from '../../lib/fsp';
+async function processFile(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	css_files: string[],
+	unused_selectors: string[]
+): Promise<Map<string, string>> {
+	const postcss_file = new Map();
+
+	const selectors_removed = [];
+	const modified_files: Set<string> = new Set();
+
+	for (let file_path of css_files) {
+		log.debug("Process CSS file", file_path);
+		const fileContent = fs.readFileSync(file_path, { encoding: "utf-8" });
+		const pCss = await postcss([postcss_nested]).process(fileContent, {
+			from: undefined,
+			parser: postcss_scss,
+		});
+
+		if (!pCss.root) {
+			throw new Error("PostCss parsing failed.");
+		}
+		postcss_file.set(file_path, pCss);
+	}
+
+	unused_selectors.forEach((selector) => {
+		if (selectors_removed.length >= config.max_num_selector) {
+			return;
+		}
+		postcss_file.forEach((pcss, file) => {
+			pcss.root.walkRules((rule: any) => {
+				// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
+				if (rule.selector === selector) {
+					log.info('file %s unused selector "%s"', file, rule.selector);
+					rule.remove();
+					modified_files.add(file);
+				}
+			});
+		});
+	});
+
+	const new_content: Map<string, string> = new Map();
+	for (let file_path of Array.from(modified_files)) {
+		log.debug("Regenerate file", file_path);
+		const clean_css = await new Promise<string>((resolve, reject) => {
+			let newCssStr = "";
+			postcss.stringify(postcss_file.get(file_path).root, (result) => {
+				newCssStr += result;
+			});
+			resolve(newCssStr);
+		});
+
+		new_content.set(file_path, clean_css);
+	}
+	return new_content;
+}
+
+function getTreeBlobs(dir: string, new_content: Map<string, string>) {
+	const res: any = [];
+	new_content.forEach((content, path) => {
+		res.push({
+			path: normalizePath(dir, path),
+			content,
+			// sha: path_blob.get(path),
+			mode: "100644",
+		});
+	});
+	return res;
+}
+
+function normalizePath(dir: string, filePath: string): string {
+	// filePath = /tmp/job_create_prc2A8to/genintho-test-b6b72f9/css/test.css
+	const a = filePath.replace(dir, "");
+	// a /genintho-test-b6b72f9/css/test.css
+
+	const b = a.split("/");
+	// b [ 'genintho-test-b6b72f9', 'css', 'test.css' ]
+	b.shift();
+	b.shift();
+
+	// b2 [ 'css', 'test.css' ]
+	const c = b.join("/");
+	// c css/test.css
+	return c;
+}
 
 async function downloadArchive(
 	log: Logger,
@@ -380,17 +364,15 @@ async function createOrGetBranchSha(
 			ref: "heads/" + config.pr_branch,
 		});
 		if (branch.data.object.sha) {
+			log.info("Branch already existing", branch.data.object.sha);
 			return branch.data.object.sha;
 		}
-		// if (_.has(branch, "data.object.sha")) {
-		// 	return branch.data.object.sha;
-		// }
 	} catch (e) {
 		// Nothing to o
 		log.error(e);
 	}
-
 	// Create a new Branch
+	log.info("Branch does not exists, createa new one");
 	log.info("Get Reference to HEAD hash");
 	const response = await octokit.git.getRef({
 		// @ts-expect-error
