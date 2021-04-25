@@ -26,6 +26,7 @@ export interface Configuration {
 	readonly target_branch?: string;
 	readonly pr_branch?: string;
 	readonly mark_unused_after?: number;
+	readonly num_selectors_per_pr?: number;
 	readonly ignore?: {
 		readonly selectors?: string[];
 		readonly files?: string[];
@@ -42,7 +43,7 @@ export class Config {
 	readonly target_branch: string = "master";
 	readonly pr_branch: string = "bleachcss";
 	readonly mark_unused_after: number = 30;
-	readonly max_num_selector = 25;
+	readonly num_selectors_per_pr: number = 25;
 
 	constructor(user_config: Configuration) {
 		if (user_config.push_to_github !== true) {
@@ -96,6 +97,13 @@ export class Config {
 		}
 		this.messages.push(
 			`ℹ️ Selectors are considered unused after: '${this.mark_unused_after}' days`
+		);
+
+		if (user_config.num_selectors_per_pr) {
+			this.num_selectors_per_pr = user_config.num_selectors_per_pr;
+		}
+		this.messages.push(
+			`ℹ️ Pull Requests will remove at most: '${this.num_selectors_per_pr}' selectors`
 		);
 	}
 

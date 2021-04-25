@@ -91,11 +91,11 @@ export async function get_unused(
 		db_connection
 			// @TODO use seen_at date
 			.all(
-				"SELECT name FROM css_selector WHERE (seen_at IS NOT NULL AND seen_at < date('now', '-" +
+				"SELECT name FROM css_selector WHERE (seen_at IS NOT NULL AND seen_at < date('now', '" +
 					Number(since) +
-					" days') ) OR (seen_at IS NULL AND created_at) < date('now', '-" +
+					" days') ) OR (seen_at IS NULL AND created_at < date('now', '" +
 					Number(since) +
-					" days');"
+					" days') );"
 			)
 			//@ts-ignore
 			.then((res) => {

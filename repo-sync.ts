@@ -218,7 +218,7 @@ async function processFile(
 
 	unused_selectors.forEach((selector) => {
 		// if (selectors_removed.size >= config.max_num_selector) {
-		if (selectors_removed.size >= 2) {
+		if (selectors_removed.size >= config.num_selectors_per_pr) {
 			return;
 		}
 		postcss_file.forEach((postcss_file_instance, file) => {
