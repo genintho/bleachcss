@@ -60,6 +60,7 @@ async function main() {
 		log,
 		octokit,
 		config,
+		repo_dir,
 		css_files,
 		unused_selectors
 	);
@@ -194,6 +195,7 @@ async function processFile(
 	log: Logger,
 	octokit: Octokit,
 	config: Config,
+	repo_dir: string,
 	css_files: string[],
 	unused_selectors: string[]
 ): Promise<Map<string, string>> {
@@ -203,7 +205,13 @@ async function processFile(
 	const modified_files: Set<string> = new Set();
 
 	for (let file_path of css_files) {
-		log.debug("Process CSS file", file_path);
+		const normalized_file_path = normalizePath(repo_dir, file_path);
+		log.debug("Process CSS file", normalized_file_path);
+		if (config.ignored_source_css_file_list.includes(normalized_file_path)) {
+			log.debug(`CSS File '${normalized_file_path}' is on the ignored list`);
+			continue;
+		}
+
 		const fileContent = fs.readFileSync(file_path, { encoding: "utf-8" });
 		const pCss = await postcss([postcss_nested]).process(fileContent, {
 			from: undefined,
@@ -216,14 +224,22 @@ async function processFile(
 		postcss_file.set(file_path, pCss);
 	}
 
-	unused_selectors.forEach((selector) => {
-		// if (selectors_removed.size >= config.max_num_selector) {
+	for (const selector of unused_selectors) {
+		log.debug("Look at selector", selector);
 		if (selectors_removed.size >= config.num_selectors_per_pr) {
-			return;
+			log.debug(
+				"Reach limit of the number of CSS selector that can be removed in a PR"
+			);
+			break;
 		}
+
+		if (config.ignored_selectors_list.includes(selector)) {
+			log.debug(`Selector '${selector}' is on the ignored list`);
+			continue;
+		}
+
 		postcss_file.forEach((postcss_file_instance, file) => {
 			postcss_file_instance.root.walkRules((rule: any) => {
-				// FIXME handle rule.selectors => remove it then remove rule if rule.nodes.length == 0
 				if (rule.selector === selector) {
 					log.info('file %s unused selector "%s"', file, rule.selector);
 					rule.remove();
@@ -232,7 +248,7 @@ async function processFile(
 				}
 			});
 		});
-	});
+	}
 
 	const new_content: Map<string, string> = new Map();
 	for (let file_path of Array.from(modified_files)) {
