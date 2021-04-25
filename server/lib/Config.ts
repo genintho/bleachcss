@@ -27,10 +27,8 @@ export interface Configuration {
 	readonly pr_branch?: string;
 	readonly mark_unused_after?: number;
 	readonly num_selectors_per_pr?: number;
-	readonly ignore?: {
-		readonly selectors?: string[];
-		readonly files?: string[];
-	};
+	readonly ignored_selectors_list?: string[];
+	readonly ignored_source_css_file_list?: string[];
 }
 
 export class Config {
@@ -44,6 +42,8 @@ export class Config {
 	readonly pr_branch: string = "bleachcss";
 	readonly mark_unused_after: number = 30;
 	readonly num_selectors_per_pr: number = 25;
+	readonly ignored_selectors_list: string[] = [];
+	readonly ignored_source_css_file_list: string[] = [];
 
 	constructor(user_config: Configuration) {
 		if (user_config.push_to_github !== true) {
@@ -100,10 +100,25 @@ export class Config {
 		);
 
 		if (user_config.num_selectors_per_pr) {
-			this.num_selectors_per_pr = user_config.num_selectors_per_pr;
+			this.num_selectors_per_pr = Number(user_config.num_selectors_per_pr);
 		}
 		this.messages.push(
 			`ℹ️ Pull Requests will remove at most: '${this.num_selectors_per_pr}' selectors`
+		);
+
+		if (user_config.ignored_selectors_list) {
+			this.ignored_selectors_list = user_config.ignored_selectors_list;
+		}
+		this.messages.push(
+			`ℹ️ Selectors that will be ignored: '${this.ignored_selectors_list.toString()}'`
+		);
+
+		if (user_config.ignored_source_css_file_list) {
+			this.ignored_source_css_file_list =
+				user_config.ignored_source_css_file_list;
+		}
+		this.messages.push(
+			`ℹ️ Source CSS files that will be ignored: '${this.ignored_source_css_file_list.toString()}'`
 		);
 	}
 
