@@ -8,7 +8,7 @@ import * as Download from "./server/lib/download.utils";
 
 import { Config, get_config } from "./server/lib/Config";
 import { Logger } from "./server/lib/Logger";
-import postcss from "postcss";
+import postcss, { Root } from "postcss";
 import postcss_nested from "postcss-nested";
 import postcss_scss from "postcss-scss";
 
@@ -54,14 +54,13 @@ async function main() {
 
 	const repo_dir = await downloadArchive(log, octokit, config);
 
-	const css_files = await find_in_path(repo_dir);
+	const css_file_sources = await load_source_css_files(repo_dir, log, config);
 
-	const new_content = await processFile(
+	const new_content = await remove_selector_from_source(
 		log,
 		octokit,
 		config,
-		repo_dir,
-		css_files,
+		css_file_sources,
 		unused_selectors
 	);
 
@@ -78,18 +77,14 @@ async function main() {
 		config
 	);
 
-	log.info("Create a new tree");
-	const {
-		data: { sha: new_tree_sha },
-	} = await octokit.git.createTree({
-		// @ts-expect-error
-		repo: config.repo_name,
-		// @ts-expect-error
-		owner: config.repo_owner,
-		base_tree: tree_recent_commit_sha,
-		tree: getTreeBlobs(repo_dir, new_content),
-	});
-	log.info("Tree sha", new_tree_sha);
+	const new_tree_sha = await create_new_tree(
+		log,
+		octokit,
+		config,
+		tree_recent_commit_sha,
+		repo_dir,
+		new_content
+	);
 
 	const new_commit_sha = await create_commit(
 		log,
@@ -99,17 +94,7 @@ async function main() {
 		head_commit_sha
 	);
 
-	log.info("Map branch HEAD to new commit Hash");
-	await octokit.git.updateRef({
-		// @ts-expect-error
-		owner: config.repo_owner,
-		// @ts-expect-error
-		repo: config.repo_name,
-		ref: "heads/" + config.pr_branch,
-		sha: new_commit_sha,
-		force: true,
-	});
-	log.info("Branch has been updated");
+	await update_branch(log, octokit, config, new_commit_sha);
 
 	await create_pr(log, octokit, config);
 
@@ -191,19 +176,13 @@ async function create_pr(log: Logger, octokit: Octokit, config: Config) {
 	}
 }
 
-async function processFile(
-	log: Logger,
-	octokit: Octokit,
-	config: Config,
+async function load_source_css_files(
 	repo_dir: string,
-	css_files: string[],
-	unused_selectors: string[]
-): Promise<Map<string, string>> {
+	log: Logger,
+	config: Config
+): Promise<Map<string, Root>> {
+	const css_files = await find_source_css_file_paths(repo_dir);
 	const postcss_file = new Map();
-
-	const selectors_removed: Set<string> = new Set();
-	const modified_files: Set<string> = new Set();
-
 	for (let file_path of css_files) {
 		const normalized_file_path = normalizePath(repo_dir, file_path);
 		log.debug("Process CSS file", normalized_file_path);
@@ -212,8 +191,8 @@ async function processFile(
 			continue;
 		}
 
-		const fileContent = fs.readFileSync(file_path, { encoding: "utf-8" });
-		const pCss = await postcss([postcss_nested]).process(fileContent, {
+		const file_content = fs.readFileSync(file_path, { encoding: "utf-8" });
+		const pCss = await postcss([postcss_nested]).process(file_content, {
 			from: undefined,
 			parser: postcss_scss,
 		});
@@ -221,8 +200,20 @@ async function processFile(
 		if (!pCss.root) {
 			throw new Error("PostCss parsing failed.");
 		}
-		postcss_file.set(file_path, pCss);
+		postcss_file.set(file_path, pCss.root);
 	}
+	return postcss_file;
+}
+
+async function remove_selector_from_source(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	css_files: Map<string, Root>,
+	unused_selectors: string[]
+): Promise<Map<string, string>> {
+	const selectors_removed: Set<string> = new Set();
+	const modified_files: Set<string> = new Set();
 
 	for (const selector of unused_selectors) {
 		log.debug("Look at selector", selector);
@@ -238,8 +229,8 @@ async function processFile(
 			continue;
 		}
 
-		postcss_file.forEach((postcss_file_instance, file) => {
-			postcss_file_instance.root.walkRules((rule: any) => {
+		css_files.forEach((postcss_file_instance, file) => {
+			postcss_file_instance.walkRules((rule: any) => {
 				if (rule.selector === selector) {
 					log.info('file %s unused selector "%s"', file, rule.selector);
 					rule.remove();
@@ -255,7 +246,8 @@ async function processFile(
 		log.debug("Regenerate file", file_path);
 		const clean_css = await new Promise<string>((resolve) => {
 			let newCssStr = "";
-			postcss.stringify(postcss_file.get(file_path).root, (result) => {
+			// @ts-expect-error
+			postcss.stringify(css_files.get(file_path), (result) => {
 				newCssStr += result;
 			});
 			resolve(newCssStr);
@@ -341,7 +333,9 @@ async function getArchiveURL(
 	return response?.headers?.location;
 }
 
-export function find_in_path(path_input: string): Promise<string[]> {
+export function find_source_css_file_paths(
+	path_input: string
+): Promise<string[]> {
 	return new Promise<string[]>((resolve, reject) => {
 		// @FIXME escape command
 		const cmd =
@@ -409,4 +403,46 @@ async function createOrGetBranchSha(
 	});
 	log.info("Branch created");
 	return branch_sha;
+}
+
+async function create_new_tree(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	tree_recent_commit_sha: string,
+	repo_dir: string,
+	new_content: Map<string, string>
+) {
+	log.info("Create a new tree");
+	const {
+		data: { sha: new_tree_sha },
+	} = await octokit.git.createTree({
+		// @ts-expect-error
+		repo: config.repo_name,
+		// @ts-expect-error
+		owner: config.repo_owner,
+		base_tree: tree_recent_commit_sha,
+		tree: getTreeBlobs(repo_dir, new_content),
+	});
+	log.info("Tree sha", new_tree_sha);
+	return new_tree_sha;
+}
+
+async function update_branch(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	new_commit_sha: string
+) {
+	log.info("Map branch HEAD to new commit Hash");
+	await octokit.git.updateRef({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		ref: "heads/" + config.pr_branch,
+		sha: new_commit_sha,
+		force: true,
+	});
+	log.info("Branch has been updated");
 }
