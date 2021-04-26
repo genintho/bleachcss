@@ -56,7 +56,7 @@ async function main() {
 
 	const css_file_sources = await load_source_css_files(repo_dir, log, config);
 
-	const new_content = await remove_selector_from_source(
+	const { new_content, selectors_removed } = await remove_selector_from_source(
 		log,
 		octokit,
 		config,
@@ -96,7 +96,7 @@ async function main() {
 
 	await update_branch(log, octokit, config, new_commit_sha);
 
-	await create_pr(log, octokit, config);
+	await create_pr(log, octokit, config, selectors_removed, unused_selectors);
 
 	if (fs.existsSync(repo_dir)) {
 		fs.rmSync(repo_dir, { recursive: true });
@@ -153,7 +153,32 @@ async function create_commit(
 	return new_commit_sha;
 }
 
-async function create_pr(log: Logger, octokit: Octokit, config: Config) {
+async function create_pr(
+	log: Logger,
+	octokit: Octokit,
+	config: Config,
+	selectors_removed: Set<string>,
+	unused_selectors: string[]
+) {
+	const pr_body = [
+		"<details>",
+		`<summary>Remove ${selectors_removed.size} selectors</summary>`,
+		"<ul>",
+	]
+		.concat(
+			Array.from(selectors_removed).map((selector) => {
+				return `<li>${selector}</li>\n`;
+			}),
+			[
+				"</ul>",
+				"</details>",
+				`<i>${
+					unused_selectors.length - selectors_removed.size
+				} selectors left to remove</i>`,
+			]
+		)
+		.join("\n");
+
 	try {
 		log.info("Try to create Pull request");
 		await octokit.pulls.create({
@@ -164,16 +189,54 @@ async function create_pr(log: Logger, octokit: Octokit, config: Config) {
 			title: "[BleachCss] - Remove unused CSS selectors",
 			head: config.pr_branch,
 			base: config.target_branch,
-			body: "#Hello",
+			body: pr_body,
 		});
+		return;
 	} catch (e) {
-		debugger;
 		if (!e.errors[0].message.startsWith("A pull request already exists")) {
 			log.error(e);
-		} else {
-			log.info("PR already exists");
+			throw e;
 		}
 	}
+	log.info("PR already exists, updating it");
+	const pr_num = await find_existing_pr_number(log, octokit, config);
+	log.info(`Existing PR num ${pr_num}`);
+	if (pr_num === undefined) {
+		return;
+	}
+	await octokit.pulls.update({
+		// @ts-expect-error
+		owner: config.repo_owner,
+		// @ts-expect-error
+		repo: config.repo_name,
+		pull_number: pr_num,
+		body: pr_body,
+	});
+	//
+}
+
+async function find_existing_pr_number(
+	log: Logger,
+	octokit: Octokit,
+	config: Config
+): Promise<number | undefined> {
+	// - - - -
+	log.info("branch:" + config.pr_branch);
+	const res = await octokit.pulls.list({
+		// @ts-expect-error
+		repo: config.repo_name,
+		// @ts-expect-error
+		owner: config.repo_owner,
+		state: "open",
+		head: "" + config.pr_branch,
+	});
+	for (let i = 0; i < res.data.length; i++) {
+		const pr = res.data[i];
+		if (pr.state === "open" && pr.head.ref === config.pr_branch) {
+			return pr.number;
+		}
+	}
+	return;
 }
 
 async function load_source_css_files(
@@ -211,7 +274,10 @@ async function remove_selector_from_source(
 	config: Config,
 	css_files: Map<string, Root>,
 	unused_selectors: string[]
-): Promise<Map<string, string>> {
+): Promise<{
+	new_content: Map<string, string>;
+	selectors_removed: Set<string>;
+}> {
 	const selectors_removed: Set<string> = new Set();
 	const modified_files: Set<string> = new Set();
 
@@ -255,7 +321,7 @@ async function remove_selector_from_source(
 
 		new_content.set(file_path, clean_css);
 	}
-	return new_content;
+	return { new_content, selectors_removed };
 }
 
 function getTreeBlobs(dir: string, new_content: Map<string, string>) {
